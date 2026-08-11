@@ -49,10 +49,12 @@ import com.movtery.zalithlauncher.ui.components.SimpleListDialog
 import com.movtery.zalithlauncher.ui.screens.content.elements.DisabledAlpha
 import com.movtery.zalithlauncher.ui.upgrade.UpgradeDialog
 import com.movtery.zalithlauncher.ui.upgrade.UpgradeFilesDialog
+import com.movtery.zalithlauncher.ui.upgrade.AutoUpdaterScreen
 import com.movtery.zalithlauncher.upgrade.GithubContentApi
 import com.movtery.zalithlauncher.upgrade.RemoteData
 import com.movtery.zalithlauncher.upgrade.TooFrequentOperationException
-import com.movtery.zalithlauncher.utils.logging.Logger
+import com.movtery.zalithlauncher.utils.logging.Logger.lInfo
+import com.movtery.zalithlauncher.utils.logging.Logger.lWarning
 import com.movtery.zalithlauncher.utils.network.safeBodyAsJson
 import com.movtery.zalithlauncher.utils.network.withRetry
 import com.movtery.zalithlauncher.utils.string.decodeBase64
@@ -65,14 +67,14 @@ import kotlinx.coroutines.withContext
 import java.util.Locale
 import java.util.concurrent.TimeUnit
 
-private const val TAG = "LauncherUpgradeVM"
-
 sealed interface LauncherUpgradeOperation {
     data object None : LauncherUpgradeOperation
     /** 已检查到启动器存在新版本，展示更新信息 */
     data class Upgrade(val data: RemoteData) : LauncherUpgradeOperation
     /** 选择要安装的安装包文件 */
     data class SelectApk(val data: RemoteData) : LauncherUpgradeOperation
+    /** 正在下载并应用更新 */
+    data class Updating(val data: RemoteData, val file: RemoteData.RemoteFile) : LauncherUpgradeOperation
     /** 打开网盘分享 */
     data class OpenCloudDrive(val cloudDrive: RemoteData.CloudDrive) : LauncherUpgradeOperation
 }
@@ -80,8 +82,8 @@ sealed interface LauncherUpgradeOperation {
 /**
  * 最新版本的信息获取源
  */
-private const val LATEST_VERSION = "latest_version_md.json"
-private const val LATEST_API_URL = "$URL_PROJECT_INFO/$LATEST_VERSION"
+private const val LATEST_VERSION = "release.json"
+private const val LATEST_API_URL = "https://github.com/Suraj-202211/Modula-Mobile/releases/latest/download/$LATEST_VERSION"
 private const val LATEST_API_CHINESE_URL = "https://repo.miawa.cn/zalith-info/v2/$LATEST_VERSION"
 
 /**
@@ -130,7 +132,7 @@ class LauncherUpgradeViewModel: ViewModel() {
                     lastCheckTime = AllSettings.lastUpgradeCheck.getValue()
                 )
             ) {
-                Logger.info(TAG, "App start check: Within rate limit, skipping")
+                lInfo("App start check: Within rate limit, skipping")
                 return@launch
             }
 
@@ -202,17 +204,17 @@ class LauncherUpgradeViewModel: ViewModel() {
             }.getOrElse { e ->
                 if (Locale.getDefault().language == "zh") {
                     runCatching {
-                        Logger.info(TAG, "Check for updates in the Chinese region.")
+                        lInfo("Check for updates in the Chinese region.")
                         //在中国地区，可能因为无法访问 Github API 导致获取更新信息失败
                         withRetry(logTag = "LauncherUpgrade_Chinese", maxRetries = 2) {
                             GLOBAL_CLIENT.get(LATEST_API_CHINESE_URL).safeBodyAsJson<RemoteData>()
                         }
                     }.getOrElse { e ->
-                        Logger.warning(TAG, "Failed to check for launcher upgrade!", e)
+                        lWarning("Failed to check for launcher upgrade!", e)
                         null
                     }
                 } else {
-                    Logger.warning(TAG, "Failed to check for launcher upgrade!", e)
+                    lWarning("Failed to check for launcher upgrade!", e)
                     null
                 }
             }
@@ -239,16 +241,16 @@ class LauncherUpgradeViewModel: ViewModel() {
             when {
                 ignoreDismissedVersions && lastIgnored == data.code -> {
                     //忽略这次更新
-                    Logger.info(TAG, "Launcher update detected: $currentVersionCode -> ${data.code}, but ignored by user")
+                    lInfo("Launcher update detected: $currentVersionCode -> ${data.code}, but ignored by user")
                 }
                 else -> {
                     //弹出更新弹窗
-                    Logger.info(TAG, "Launcher update detected: $currentVersionCode -> ${data.code}, dialog shown to user")
+                    lInfo("Launcher update detected: $currentVersionCode -> ${data.code}, dialog shown to user")
                     onUpgrade(data)
                 }
             }
         } else {
-            Logger.info(TAG, "Launcher is running the latest version: $currentVersionCode")
+            lInfo("Launcher is running the latest version: $currentVersionCode")
             onIsLatest()
         }
     }
@@ -288,7 +290,15 @@ fun LauncherUpgradeOperation(
                     onChanged(LauncherUpgradeOperation.None)
                 },
                 onFileSelected = { file ->
-                    onLinkClick(file.uri)
+                    onChanged(LauncherUpgradeOperation.Updating(operation.data, file))
+                }
+            )
+        }
+        is LauncherUpgradeOperation.Updating -> {
+            AutoUpdaterScreen(
+                data = operation.data,
+                file = operation.file,
+                onDismissRequest = {
                     onChanged(LauncherUpgradeOperation.None)
                 }
             )
@@ -300,6 +310,9 @@ fun LauncherUpgradeOperation(
             SimpleListDialog(
                 title = stringResource(R.string.upgrade_cloud_drive),
                 items = operation.cloudDrive.links,
+                itemTextProvider = { link ->
+                    link.link
+                },
                 onItemSelected = { link ->
                     onLinkClick(link.link)
                 },
@@ -307,7 +320,7 @@ fun LauncherUpgradeOperation(
                     onChanged(LauncherUpgradeOperation.None)
                 },
                 current = current,
-                itemLayout = { item, isCurrent, onClick ->
+                itemLayout = { item, isCurrent, _, onClick ->
                     CloudDriveLayout(
                         link = item,
                         selected = isCurrent,

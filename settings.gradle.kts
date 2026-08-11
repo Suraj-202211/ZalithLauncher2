@@ -21,13 +21,15 @@ dependencyResolutionManagement {
     repositories {
         google()
         mavenCentral()
+        maven {
+            url = uri("https://pkgs.dev.azure.com/MicrosoftDeviceSDKs/DuoSDK-Public/_packaging/Duo-SDK-Feed/maven/v1")
+        }
     }
 }
 
-rootProject.name = "ZalithLauncher"
+rootProject.name = "ModulaMobile"
 include(":ZalithLauncher")
 include(":LWJGL")
 include(":LayerController")
 include(":ColorPicker")
 include(":Terracotta")
-include(":InputMap")

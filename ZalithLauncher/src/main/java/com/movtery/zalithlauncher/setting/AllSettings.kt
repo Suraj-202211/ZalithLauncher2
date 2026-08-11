@@ -22,14 +22,13 @@ import android.os.Build
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
-import com.materialkolor.PaletteStyle
+import com.movtery.layer_controller.data.POSITION_RANGE
 import com.movtery.layer_controller.utils.snap.SnapMode
-import com.movtery.zalithlauncher.BuildKeys
 import com.movtery.zalithlauncher.game.download.assets.platform.Platform
 import com.movtery.zalithlauncher.game.path.GamePathManager
 import com.movtery.zalithlauncher.game.version.installed.GraphicsApi
+import com.movtery.zalithlauncher.info.InfoDistributor
 import com.movtery.zalithlauncher.setting.enums.AppLanguage
-import com.movtery.zalithlauncher.setting.enums.BackgroundBlur
 import com.movtery.zalithlauncher.setting.enums.DarkMode
 import com.movtery.zalithlauncher.setting.enums.GestureActionType
 import com.movtery.zalithlauncher.setting.enums.HomePageType
@@ -63,7 +62,7 @@ object AllSettings : SettingsRegistry() {
     /**
      * 分辨率
      */
-    val resolutionRatio = intSetting("resolutionRatio", 100, 25..300)
+    val resolutionRatio = intSetting("resolutionRatio", 75, 25..300)
 
     /**
      * 游戏页面全屏化
@@ -78,7 +77,7 @@ object AllSettings : SettingsRegistry() {
     /**
      * 持续性能模式
      */
-    val sustainedPerformance = boolSetting("sustainedPerformance", false)
+    val sustainedPerformance = boolSetting("sustainedPerformance", true)
 
     /**
      * 使用系统的 Vulkan 驱动
@@ -93,7 +92,7 @@ object AllSettings : SettingsRegistry() {
     /**
      * 强制在高性能核心运行
      */
-    val bigCoreAffinity = boolSetting("bigCoreAffinity", false)
+    val bigCoreAffinity = boolSetting("bigCoreAffinity", true)
 
     /**
      * 启用着色器日志输出
@@ -114,7 +113,7 @@ object AllSettings : SettingsRegistry() {
     /**
      * 版本自定义信息
      */
-    val versionCustomInfo = stringSetting("versionCustomInfo", "${BuildKeys.LAUNCHER_IDENTIFIER}[zl_version]")
+    val versionCustomInfo = stringSetting("versionCustomInfo", "${InfoDistributor.LAUNCHER_IDENTIFIER}[zl_version]")
 
     /**
      * 启动器的Java环境
@@ -129,7 +128,34 @@ object AllSettings : SettingsRegistry() {
     /**
      * 游戏内存分配大小
      */
-    val ramAllocation = intSetting("ramAllocation", null, min = 256)
+    val ramAllocation = intSetting("ramAllocation", null as Int?, min = 256)
+
+    val unlockFps = boolSetting("unlockFps", false)
+    val richPresence = boolSetting("richPresence", true)
+
+    val particleDensity = intSetting("particleDensity", 60, min = 0, max = 100)
+    val motionInterpolation = intSetting("motionInterpolation", 80, min = 0, max = 100)
+    val uiTransparency = intSetting("uiTransparency", 10, min = 0, max = 100)
+    val uiScaling = intSetting("uiScaling", 85, min = 50, max = 200)
+    
+    val bloomEffects = boolSetting("bloomEffects", true)
+    val dynamicShadows = boolSetting("dynamicShadows", true)
+    val autoUpdate = boolSetting("autoUpdate", true)
+    val showFpsCounter = boolSetting("showFpsCounter", false)
+    val enableSnapshots = boolSetting("enableSnapshots", false)
+    val advancedDebug = boolSetting("advancedDebug", false)
+    val lowRamMode = boolSetting("lowRamMode", false)
+    val batterySaver = boolSetting("batterySaver", true)
+    val gpuAcceleration = boolSetting("gpuAcceleration", true)
+    
+    val themeSelection = stringSetting("themeSelection", "DEFAULT")
+    val languageSelection = stringSetting("languageSelection", "ENGLISH (US)")
+    val nativeVoiceEngine = boolSetting("nativeVoiceEngine", false)
+    val proximityChat = boolSetting("proximityChat", false)
+    val noiseSuppression = boolSetting("noiseSuppression", false)
+    val highBitrateAudio = boolSetting("highBitrateAudio", false)
+    val touchHaptics = boolSetting("touchHaptics", true)
+    val secureBoot = boolSetting("secureBoot", true)
 
     /**
      * 自定义Jvm启动参数
@@ -344,11 +370,6 @@ object AllSettings : SettingsRegistry() {
     val launcherCustomColor = intSetting("launcherCustomColor", Color.Blue.toArgb())
 
     /**
-     * 自定义颜色配色风格
-     */
-    val launcherCustomPaletteStyle = enumSetting("launcherCustomPaletteStyle", PaletteStyle.TonalSpot)
-
-    /**
      * 启动器UI深色主题
      */
     val launcherDarkMode = enumSetting("launcherDarkMode", DarkMode.FollowSystem)
@@ -392,16 +413,6 @@ object AllSettings : SettingsRegistry() {
      * 启动器视频背景音量
      */
     val videoBackgroundVolume = intSetting("videoBackgroundVolume", 0, 0..100)
-
-    /**
-     * 启动器背景模糊效果
-     */
-    val backgroundBlur = intSetting("backgroundBlur", 0, 0..40)
-
-    /**
-     * 启动器背景模糊效果类型
-     */
-    val backgroundBlurType = enumSetting("backgroundBlurType", BackgroundBlur.Background)
 
     /**
      * 启动器主页类型
@@ -506,21 +517,6 @@ object AllSettings : SettingsRegistry() {
     val hotbarHeight = intSetting("hotbarHeight", 100, 0..1000)
 
     /**
-     * 快捷栏双击与副手交换物品
-     */
-    val hotbarDoubleClick = boolSetting("hotbarDoubleClick", true)
-
-    /**
-     * 快捷栏长按丢弃所选物品
-     */
-    val hotbarLongClick = boolSetting("hotbarLongClick", true)
-
-    /**
-     * 快捷栏长按快捷栏触发延迟
-     */
-    val hotbarLongClickDelay = intSetting("hotbarLongClickDelay", 300, 100..1000)
-
-    /**
      * 游戏内控制布局的整体不透明度
      */
     val controlsOpacity = intSetting("controlsOpacity", 100, 0..100)
@@ -546,19 +542,65 @@ object AllSettings : SettingsRegistry() {
     val enableTerracotta = boolSetting("enableTerracotta", false)
 
     /**
-     * 是否使用自定义 EasyTier 服务器节点
-     */
-    val enableTerracottaNodes = boolSetting("enableTerracottaNodes", false)
-
-    /**
-     * 陶瓦联机：自定义 EasyTier 服务器节点
-     */
-    val terracottaNodes = stringSetting("terracottaNodes", "")
-
-    /**
      * 陶瓦联机公告版本号
      */
     val terracottaNoticeVer = intSetting("terracottaNoticeVer", -1)
+
+    //特殊样式
+    /**
+     * 是否在游戏中启用摇杆移动组件
+     */
+    val enableJoystickControl = boolSetting("enableJoystickControl", false)
+
+    /**
+     * 游戏中摇杆移动组件的 X 坐标 0~10000
+     */
+    val joystickControlX = intSetting("joystickControlX", 5000, POSITION_RANGE)
+
+    /**
+     * 游戏中摇杆移动组件的 Y 坐标 0~10000
+     */
+    val joystickControlY = intSetting("joystickControlY", 5000, POSITION_RANGE)
+
+    /**
+     * 游戏中摇杆移动组件的大小 Dp
+     */
+    val joystickControlSize = intSetting("joystickControlSize", 120, 80..180)
+
+    /**
+     * 游戏中摇杆移动组件是否使用控制布局提供的样式
+     */
+    val joystickUseStyleByLayout = boolSetting("joystickUseStyleByLayout", true)
+
+    /**
+     * 游戏中摇杆移动组件是否在使用实体鼠标时隐藏
+     */
+    val joystickHideWhenMouse = boolSetting("joystickHideWhenMouse", true)
+
+    /**
+     * 游戏中摇杆移动组件是否在使用手柄时隐藏
+     */
+    val joystickHideWhenGamepad = boolSetting("joystickHideWhenGamepad", true)
+
+    /**
+     * 摇杆组件死区缩放
+     */
+    val joystickDeadZoneRatio = intSetting("joystickDeadZoneRatio", 30, 10..50)
+
+    /**
+     * 摇杆前进锁判定范围
+     */
+    val joystickLockThreshold = intSetting("joystickLockThreshold", 30, 5..100)
+
+    /**
+     * 游戏中摇杆移动组件是否可锁定
+     */
+    val joystickControlCanLock = boolSetting("joystickControlCanLock", true)
+
+    /**
+     * 游戏中摇杆移动组件在前进锁定时，是否强制疾跑
+     */
+    val joystickControlLockSpring = boolSetting("joystickControlLockSpring", true)
 
     /**
      * 上次检查更新的时间戳
@@ -599,4 +641,9 @@ object AllSettings : SettingsRegistry() {
      * 启动 MC26.2+ 时，自动检查 Vulkan
      */
     val autoVulkanChecker = boolSetting("autoVulkanChecker", true)
+
+    /**
+     * 自定义皮肤URL
+     */
+    val customSkinUrl = stringSetting("customSkinUrl", "")
 }

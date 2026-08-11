@@ -111,3 +111,11 @@ include $(BUILD_SHARED_LIBRARY)
 # delete fake libs after linked
 $(info $(shell (rm $(HERE_PATH)/../jniLibs/*/libawt_headless.so)))
 
+
+LOCAL_PATH := $(HERE_PATH)/bspatch
+include $(CLEAR_VARS)
+LOCAL_MODULE := bspatch
+LOCAL_C_INCLUDES := $(LOCAL_PATH)
+LOCAL_SRC_FILES := bspatch.c bspatch_jni.c blocksort.c huffman.c crctable.c randtable.c compress.c decompress.c bzlib.c
+LOCAL_LDLIBS := -llog
+include $(BUILD_SHARED_LIBRARY)

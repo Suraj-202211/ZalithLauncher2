@@ -4,7 +4,6 @@ import android.net.VpnService;
 import android.os.ParcelFileDescriptor;
 import android.util.Log;
 
-import androidx.annotation.Keep;
 import androidx.annotation.Nullable;
 
 import java.io.BufferedReader;
@@ -55,7 +54,6 @@ import java.util.concurrent.atomic.AtomicLong;
  *
  * <p>A RuntimeException will be thrown if an error occured in native level.</p>
  */
-@Keep
 public final class TerracottaAndroidAPI {
     /**
      * <p>Callback for receiving VpnService Requests</p>
@@ -395,7 +393,6 @@ public final class TerracottaAndroidAPI {
     private static final long FD_PENDING = ((long) Integer.MAX_VALUE) + 1;
     private static final long FD_REJECT = FD_PENDING + 1;
 
-    @Keep
     @SuppressWarnings("unused") // Native callback
     private static int onVpnServiceStateChanged(byte ip1, byte ip2, byte ip3, byte ip4, short network_length, String cidr) throws UnknownHostException {
         if (pendingRequest != null) {
@@ -468,33 +465,23 @@ public final class TerracottaAndroidAPI {
         }
     }
 
-    @Keep
     private static native int start0(String baseDir, int loggingFD);
 
-    @Keep
     private static native String getState0();
 
-    @Keep
     private static native void setWaiting0();
 
-    @Keep
     private static native void setScanning0(String room, String player, String extraNodes);
 
-    @Keep
     private static native boolean setGuesting0(String room, String player, String extraNodes);
 
-    @Keep
     private static native int verifyRoomCode0(String room);
 
-    @Keep
     private static native String getMetadata0();
 
-    @Keep
     private static native long prepareExportLogs0();
 
-    @Keep
     private static native void finishExportLogs0(long pointer);
 
-    @Keep
     private static native void panic0();
 }

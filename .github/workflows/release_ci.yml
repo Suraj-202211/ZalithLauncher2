@@ -26,39 +26,27 @@ jobs:
 
     steps:
       - name: Download Files
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@v4
         with:
           path: ./artifacts
 
       - name: Organize Artifacts
         run: |
           mkdir -p ./apks
-          mkdir -p ./mappings
           
           find ./artifacts -name "*.apk" -type f -exec cp {} ./apks/ \;
           
-          for dir in ./artifacts/*/; do
-            dir_name=$(basename "$dir")
-          
-            # 跳过 APK
-            if [[ "$dir_name" == *"release apk"* ]]; then
-              continue
-            fi
-          
-            if [[ "$dir_name" == mapping* ]]; then
-              (cd "$dir" && zip -r "../${dir_name}.zip" .)
-              mv "./artifacts/${dir_name}.zip" ./mappings/
-            fi
-          done
+          # 检查是否有APK文件
+          if [ -z "$(ls -A ./apks/)" ]; then
+            echo "No APK files found to upload!"
+            exit 1
+          fi
           
           echo "Found $(ls ./apks/ | wc -l) APK file(s)"
-          echo "Found $(ls ./mappings/ | wc -l) Mapping file(s)"
 
       - name: Upload To Release
-        uses: softprops/action-gh-release@v3
+        uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.event.release.tag_name }}
-          files: |
-            ./apks/*.apk
-            ./mappings/*.zip
+          files: ./apks/*.apk
           fail_on_unmatched_files: true

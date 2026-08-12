@@ -72,14 +72,13 @@ import androidx.constraintlayout.compose.ConstraintLayout
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.ui.NavDisplay
-import com.movtery.zalithlauncher.BuildKeys
 import com.movtery.zalithlauncher.R
 import com.movtery.zalithlauncher.coroutine.Task
 import com.movtery.zalithlauncher.coroutine.TaskSystem
 import com.movtery.zalithlauncher.game.version.installed.Version
+import com.movtery.zalithlauncher.info.InfoDistributor
 import com.movtery.zalithlauncher.setting.AllSettings
-import com.movtery.zalithlauncher.ui.AndroidStringText
-import com.movtery.zalithlauncher.ui.androidText
+import com.movtery.zalithlauncher.ui.base.applyFullscreen
 import com.movtery.zalithlauncher.ui.components.BackgroundCard
 import com.movtery.zalithlauncher.ui.components.CardTitleLayout
 import com.movtery.zalithlauncher.ui.components.TextRailItem
@@ -100,7 +99,6 @@ import com.movtery.zalithlauncher.ui.screens.content.VersionExportScreen
 import com.movtery.zalithlauncher.ui.screens.content.VersionSettingsScreen
 import com.movtery.zalithlauncher.ui.screens.content.VersionsManageScreen
 import com.movtery.zalithlauncher.ui.screens.content.WebViewScreen
-import com.movtery.zalithlauncher.ui.screens.content.assetinfo.AssetInfoScreen
 import com.movtery.zalithlauncher.ui.screens.content.navigateToDownload
 import com.movtery.zalithlauncher.ui.screens.navigateTo
 import com.movtery.zalithlauncher.ui.screens.onBack
@@ -119,7 +117,6 @@ import com.movtery.zalithlauncher.viewmodel.LocalBackgroundViewModel
 import com.movtery.zalithlauncher.viewmodel.ModpackImportViewModel
 import com.movtery.zalithlauncher.viewmodel.ScreenBackStackViewModel
 import com.movtery.zalithlauncher.viewmodel.sendKeepScreen
-import com.movtery.zalithlauncher.viewmodel.sendToast
 
 @Composable
 fun MainScreen(
@@ -168,7 +165,7 @@ fun MainScreen(
     ) {
         Column(
             modifier = Modifier
-                .fillMaxSize()
+                .applyFullscreen(AllSettings.launcherFullScreen.state)
         ) {
             TopBar(
                 modifier = Modifier
@@ -329,7 +326,7 @@ private fun <E: TitledNavKey> TopBar(
                 if (parent == null) {
                     if (festivals.isEmpty()) {
                         Text(
-                            text = BuildKeys.LAUNCHER_IDENTIFIER,
+                            text = InfoDistributor.LAUNCHER_IDENTIFIER,
                             style = style,
                             softWrap = softWarp,
                             maxLines = maxLines
@@ -342,14 +339,11 @@ private fun <E: TitledNavKey> TopBar(
                         )
                     }
                 } else {
-                    val titleText = if (child != null) {
-                        androidText(parent, androidText(" - "), child)
-                    } else {
-                        parent
-                    }
+                    val parentText = stringResource(parent)
+                    val childText = child?.let { stringResource(it) }
 
-                    AndroidStringText(
-                        text = titleText,
+                    Text(
+                        text = if (childText != null) "$parentText - $childText" else parentText,
                         style = style,
                         softWrap = softWarp,
                         maxLines = maxLines
@@ -544,9 +538,6 @@ private fun NavigationUI(
                         openLink = { url ->
                             eventViewModel.sendEvent(EventViewModel.Event.OpenLink(url))
                         },
-                        showToast = { text, duration ->
-                            eventViewModel.sendToast(text, duration)
-                        },
                         submitError = submitError
                     )
                 }
@@ -601,15 +592,6 @@ private fun NavigationUI(
                         eventViewModel = eventViewModel,
                         modpackImportViewModel = modpackImportViewModel,
                         submitError = submitError
-                    )
-                }
-                entry<NestedNavKey.AssetInfo> { key ->
-                    AssetInfoScreen(
-                        key = key,
-                        mainScreenKey = screenBackStackModel.mainScreen.currentKey,
-                        assetInfoScreenKey = key.currentKey,
-                        eventViewModel = eventViewModel,
-                        submitError = submitError,
                     )
                 }
                 entry<NormalNavKey.Multiplayer> {
@@ -671,7 +653,7 @@ private fun TaskMenu(
             elevation = CardDefaults.elevatedCardElevation(defaultElevation = 6.dp)
         ) {
             Column {
-                CardTitleLayout(blur = 0) {
+                CardTitleLayout {
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -705,14 +687,11 @@ private fun TaskMenu(
                     contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
                 ) {
                     items(tasks) { task ->
-                        val taskProgress by task.progress.collectAsStateWithLifecycle()
-                        val taskMessage by task.message.collectAsStateWithLifecycle()
-                        val rateBytesPerSec by task.rateBytesPerSec.collectAsStateWithLifecycle()
-
                         TaskItem(
-                            taskProgress = taskProgress,
-                            taskMessage = taskMessage,
-                            rateBytesPerSec = rateBytesPerSec,
+                            taskProgress = task.currentProgress,
+                            taskMessageRes = task.currentMessageRes,
+                            taskMessageArgs = task.currentMessageArgs,
+                            taskRateBytesPerSec = task.currentRateBytesPerSec,
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(vertical = 6.dp)
@@ -730,8 +709,9 @@ private fun TaskMenu(
 @Composable
 private fun TaskItem(
     taskProgress: Float,
-    taskMessage: AndroidStringText?,
-    rateBytesPerSec: Long?,
+    taskMessageRes: Int?,
+    taskMessageArgs: Array<out Any>?,
+    taskRateBytesPerSec: Long,
     modifier: Modifier = Modifier,
     shape: Shape = MaterialTheme.shapes.large,
     color: Color = cardColor(false),
@@ -766,9 +746,13 @@ private fun TaskItem(
                     .weight(1f)
                     .align(Alignment.CenterVertically)
             ) {
-                taskMessage?.let { message ->
-                    AndroidStringText(
-                        text = message,
+                taskMessageRes?.let { messageRes ->
+                    Text(
+                        text = if (taskMessageArgs != null) {
+                            stringResource(messageRes, *taskMessageArgs)
+                        } else {
+                            stringResource(messageRes)
+                        },
                         style = MaterialTheme.typography.labelMedium
                     )
                 }
@@ -795,7 +779,7 @@ private fun TaskItem(
                             style = MaterialTheme.typography.labelMedium
                         )
                     }
-                    rateBytesPerSec?.let { bytes ->
+                    taskRateBytesPerSec.takeIf { it >= 0L }?.let { bytes ->
                         val text = remember(bytes) { "${formatFileSize(bytes)}/s" }
                         Text(
                             text = text,
@@ -807,3 +791,4 @@ private fun TaskItem(
         }
     }
 }
+

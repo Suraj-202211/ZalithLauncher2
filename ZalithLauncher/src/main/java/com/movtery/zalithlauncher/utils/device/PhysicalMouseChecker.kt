@@ -22,9 +22,7 @@ import android.app.Activity
 import android.content.Context
 import android.hardware.input.InputManager
 import android.view.InputDevice
-import com.movtery.zalithlauncher.utils.logging.Logger
-
-private const val TAG = "PhysicalMouseChecker"
+import com.movtery.zalithlauncher.utils.logging.Logger.lInfo
 
 object PhysicalMouseChecker {
     /**
@@ -36,23 +34,23 @@ object PhysicalMouseChecker {
     fun initChecker(activity: Activity) {
         //粗检测，因为启动软件前可能已经连接实体鼠标了
         physicalMouseConnected = isPhysicalMouseConnected()
-        Logger.info(TAG, "Initialization complete, physical mouse connection status: $physicalMouseConnected")
+        lInfo("Initialization complete, physical mouse connection status: $physicalMouseConnected")
 
         val listener = object : InputManager.InputDeviceListener {
             override fun onInputDeviceAdded(deviceId: Int) {
                 if (deviceId.isMouseId()) {
-                    Logger.info(TAG, "Physical mouse connected, deviceId: $deviceId")
+                    lInfo("Physical mouse connected, deviceId: $deviceId")
                     physicalMouseConnected = true
                 }
             }
 
             override fun onInputDeviceRemoved(deviceId: Int) {
                 if (deviceId.isMouseId()) {
-                    Logger.info(TAG, "Physical mouse disconnected, deviceId: $deviceId")
+                    lInfo("Physical mouse disconnected, deviceId: $deviceId")
                     physicalMouseConnected = false
                 } else {
                     physicalMouseConnected = isPhysicalMouseConnected()
-                    Logger.info(TAG, "Fallback check for physical mouse connection status: $physicalMouseConnected")
+                    lInfo("Fallback check for physical mouse connection status: $physicalMouseConnected")
                 }
             }
 

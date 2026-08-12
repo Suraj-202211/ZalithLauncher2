@@ -22,10 +22,8 @@ import android.content.Context
 import android.content.pm.PackageManager
 import com.movtery.zalithlauncher.game.plugin.ApkPlugin
 import com.movtery.zalithlauncher.game.plugin.cacheAppIcon
-import com.movtery.zalithlauncher.utils.logging.Logger
+import com.movtery.zalithlauncher.utils.logging.Logger.lWarning
 import java.io.File
-
-private const val TAG = "FFmpegPlugin"
 
 object FFmpegPluginManager {
     private const val PLUGIN_PACKAGE_NAME = "net.kdt.pojavlaunch.ffmpeg"
@@ -69,15 +67,15 @@ object FFmpegPluginManager {
             if (isAvailable) {
                 cacheAppIcon(context, applicationInfo)
                 runCatching {
-                    ApkPlugin(
+                    object : ApkPlugin(
                         packageName = PLUGIN_PACKAGE_NAME,
                         appName = applicationInfo.loadLabel(manager).toString(),
                         appVersion = manager.getPackageInfo(PLUGIN_PACKAGE_NAME, 0).versionName ?: ""
-                    )
+                    ) {}
                 }.getOrNull()?.let { loaded(it) }
             }
         }.onFailure { e ->
-            Logger.warning(TAG, "Failed to discover plugin", e)
+            lWarning("Failed to discover plugin", e)
         }
     }
 }

@@ -18,17 +18,14 @@
 
 package com.movtery.zalithlauncher.ui.screens.content.versions
 
-import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.offset
-import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.Button
 import androidx.compose.material3.Text
-import androidx.compose.material3.scrollbar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -69,15 +66,13 @@ import com.movtery.zalithlauncher.ui.screens.content.download.game.NeoForgeList
 import com.movtery.zalithlauncher.ui.screens.content.download.game.QuiltList
 import com.movtery.zalithlauncher.ui.screens.content.download.game.rememberLoaderVerSupports
 import com.movtery.zalithlauncher.ui.screens.content.download.game.runWithState
-import com.movtery.zalithlauncher.utils.logging.Logger
+import com.movtery.zalithlauncher.utils.logging.Logger.lInfo
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-
-private const val TAG = "UpdateLoaderScreen"
 
 data class AddonDiffs(
     val list: List<Diff>
@@ -229,7 +224,7 @@ private class AddonsViewModel(
                     add(currentAddon.cleanroomState)
                 }
             }.all { it == AddonState.None }
-            if (isLoaded0) Logger.info(TAG, "Game’s mod loader found, or all mod loaders loaded.")
+            if (isLoaded0) lInfo("Game’s mod loader found, or all mod loaders loaded.")
             isLoaded = isLoaded0
         }
     }
@@ -515,17 +510,10 @@ fun UpdateLoaderScreen(
     ) { isVisible ->
         val unLoaded = stringResource(R.string.versions_update_loader_waiting_for_others).takeIf { !viewModel.isLoaded }
 
-        val scrollState = rememberLazyListState()
         AnimatedLazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .scrollbar(
-                    state = scrollState.scrollIndicatorState,
-                    orientation = Orientation.Vertical,
-                ),
+            modifier = Modifier.fillMaxSize(),
             isVisible = isVisible,
-            contentPadding = PaddingValues(all = 12.dp),
-            state = scrollState,
+            contentPadding = PaddingValues(all = 12.dp)
         ) { scope ->
             animatedItem(scope) { yOffset ->
                 ForgeList(

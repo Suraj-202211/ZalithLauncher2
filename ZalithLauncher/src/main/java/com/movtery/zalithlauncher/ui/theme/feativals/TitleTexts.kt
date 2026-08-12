@@ -38,7 +38,6 @@ import com.movtery.zalithlauncher.ui.screens.content.versions.elements.Minecraft
 import com.movtery.zalithlauncher.utils.festival.Festival
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
-import kotlin.time.Duration.Companion.milliseconds
 
 @Composable
 fun FestivalTitleText(
@@ -68,7 +67,7 @@ fun FestivalTitleText(
         LaunchedEffect(Unit) {
             var index = 0
             while (isActive) {
-                delay(5000L.milliseconds)
+                delay(5000)
                 index = (index + 1) % festivals.size
                 festival = festivals[index]
             }

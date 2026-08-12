@@ -336,3 +336,4 @@ private fun SimpleEditBox(
 }
 
 private fun Int?.take(value: String) = this?.let { takes -> value.take(takes) } ?: value
+

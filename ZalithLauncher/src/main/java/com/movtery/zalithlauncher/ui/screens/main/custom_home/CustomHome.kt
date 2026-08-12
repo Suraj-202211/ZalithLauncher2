@@ -894,3 +894,4 @@ private fun pickRandomText(lines: List<String>): String {
 
     return options.last().text
 }
+

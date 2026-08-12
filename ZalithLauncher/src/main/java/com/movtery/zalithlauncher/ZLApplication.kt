@@ -42,6 +42,7 @@ import com.movtery.zalithlauncher.ui.activities.showFatalError
 import com.movtery.zalithlauncher.ui.activities.showLauncherCrash
 import com.movtery.zalithlauncher.utils.device.Architecture
 import com.movtery.zalithlauncher.utils.logging.Logger
+import com.movtery.zalithlauncher.utils.logging.Logger.lError
 import com.movtery.zalithlauncher.utils.writeCrashFile
 import com.tencent.mmkv.MMKV
 import dagger.hilt.android.HiltAndroidApp
@@ -65,13 +66,13 @@ class ZLApplication : Application(), SingletonImageLoader.Factory {
             val throwable = if (th is SplashException) th.cause!!
             else th
 
-            Logger.error("Startup", "An exception occurred", throwable)
+            lError("An exception occurred", throwable)
 
             writeCrashFile(
                 file = PathManager.FILE_CRASH_REPORT,
                 throwable = throwable
             ) { t ->
-                Logger.error("AppCrash", "An exception occurred while saving the crash report", t)
+                lError("An exception occurred while saving the crash report", t)
             }
 
             showLauncherCrash(this@ZLApplication, throwable, th !is SplashException)
@@ -104,6 +105,8 @@ class ZLApplication : Application(), SingletonImageLoader.Factory {
             }
             showFatalError(this, launchTh)
         }
+
+        requestBatteryOptimizationIfNeeded()
     }
 
     override fun onConfigurationChanged(newConfig: Configuration) {
@@ -138,5 +141,17 @@ class ZLApplication : Application(), SingletonImageLoader.Factory {
     private fun initializeData() {
         AccountsManager.initialize(this)
         GamePathManager.initialize(this)
+    }
+
+    private fun requestBatteryOptimizationIfNeeded() {
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
+            val pm = getSystemService(android.os.PowerManager::class.java) ?: return
+            if (!pm.isIgnoringBatteryOptimizations(packageName)) {
+                getSharedPreferences("startup_prefs", android.content.Context.MODE_PRIVATE)
+                    .edit()
+                    .putBoolean("show_battery_dialog", true)
+                    .apply()
+            }
+        }
     }
 }

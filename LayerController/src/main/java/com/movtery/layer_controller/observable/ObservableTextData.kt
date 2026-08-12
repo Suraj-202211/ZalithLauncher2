@@ -21,6 +21,7 @@ package com.movtery.layer_controller.observable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.input.pointer.PointerInputChange
 import com.movtery.layer_controller.data.ButtonPosition
 import com.movtery.layer_controller.data.ButtonSize
 import com.movtery.layer_controller.data.TextData
@@ -42,9 +43,6 @@ open class ObservableTextData(data: TextData) : ObservableWidget() {
     var textItalic by mutableStateOf(data.textItalic)
     var textUnderline by mutableStateOf(data.textUnderline)
     var visibilityType by mutableStateOf(data.visibilityType)
-
-    override val behavior: InteractionBehavior
-        get() = InteractionBehavior.Press //展示控件不参与触控
 
     override val internalRenderPosition: ButtonPosition
         get() = position
@@ -88,6 +86,7 @@ open class ObservableTextData(data: TextData) : ObservableWidget() {
     override fun onTouchEvent(
         eventHandler: EventHandler,
         allLayers: List<ObservableControlLayer>,
+        change: PointerInputChange,
         activeWidgets: List<ObservableWidget>,
         addThis: () -> Unit,
         consumeEvent: (Boolean) -> Unit

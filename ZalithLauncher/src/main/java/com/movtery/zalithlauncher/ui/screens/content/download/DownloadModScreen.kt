@@ -72,6 +72,7 @@ fun DownloadModScreen(
         changeOperation = { operation = it },
         doInstall = { classes, version, gameVersions ->
             downloadSingleForVersions(
+                context = context,
                 version = version,
                 versions = gameVersions,
                 folder = classes.versionFolder.folderName,

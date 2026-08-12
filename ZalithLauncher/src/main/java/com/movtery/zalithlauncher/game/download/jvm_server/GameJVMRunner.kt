@@ -21,14 +21,11 @@ package com.movtery.zalithlauncher.game.download.jvm_server
 import com.movtery.zalithlauncher.components.jre.Jre
 import com.movtery.zalithlauncher.context.GlobalContext
 import com.movtery.zalithlauncher.notification.NoticeProgress
-import com.movtery.zalithlauncher.utils.logging.Logger
+import com.movtery.zalithlauncher.utils.logging.Logger.lInfo
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
-import kotlin.time.Duration.Companion.milliseconds
-
-private const val TAG = "GameJVMRunner"
 
 /**
  * 运行一个简易的JVM环境，安装ModLoader，同时在jvm退出时，尝试使用其他的Java环境重试
@@ -46,8 +43,8 @@ suspend fun runJvmRetryRuntimes(
     start: () -> Unit = {}
 ): Unit = withContext(Dispatchers.Default) {
     while (!isOnlyMainProcessesRunning(context = GlobalContext)) {
-        Logger.info(TAG, "$logId Waiting for other processes stop...")
-        delay(100L.milliseconds)
+        lInfo("$logId Waiting for other processes stop...")
+        delay(100)
     }
 
     start()
@@ -72,7 +69,7 @@ suspend fun runJvmRetryRuntimes(
         }
 
         nextJava?.let { jre ->
-            Logger.info(TAG, "Retry with jre ${jre.name}...")
+            lInfo("Retry with jre ${jre.name}...")
             runJvmRetryRuntimes(
                 logId = logId,
                 jvmArgs = jvmArgs,
@@ -105,7 +102,7 @@ suspend fun startJvmServiceAndWaitExit(
     )
 
     JVMSocketServer.start { receiveMsg ->
-        Logger.info(TAG, "receive msg: $receiveMsg, stopping server...")
+        lInfo("receive msg: $receiveMsg, stopping server...")
         if (!doneSignal.isCompleted) {
             doneSignal.complete(Unit)
         }
@@ -114,6 +111,6 @@ suspend fun startJvmServiceAndWaitExit(
     doneSignal.await()
 
     val code = JVMSocketServer.receiveMsg?.toIntOrNull()
-    Logger.info(TAG, "receive exit code: ${code ?: "unknown, default 0"}")
+    lInfo("receive exit code: ${code ?: "unknown, default 0"}")
     code ?: 0
 }

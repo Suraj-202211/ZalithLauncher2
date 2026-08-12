@@ -59,35 +59,31 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import com.jakewharton.processphoenix.ProcessPhoenix
-import com.movtery.inputmap.keycodes.LwjglGlfwKeycode
 import com.movtery.zalithlauncher.R
 import com.movtery.zalithlauncher.bridge.CURSOR_DISABLED
 import com.movtery.zalithlauncher.bridge.LoggerBridge
 import com.movtery.zalithlauncher.bridge.ZLBridge
 import com.movtery.zalithlauncher.bridge.ZLBridgeStates
 import com.movtery.zalithlauncher.coroutine.DataBridge
-import com.movtery.zalithlauncher.game.account.Account
 import com.movtery.zalithlauncher.game.input.AWTCharSender
 import com.movtery.zalithlauncher.game.input.CharacterSenderStrategy
 import com.movtery.zalithlauncher.game.input.LWJGLCharSender
+import com.movtery.zalithlauncher.game.keycodes.LwjglGlfwKeycode
 import com.movtery.zalithlauncher.game.launch.GameLauncher
 import com.movtery.zalithlauncher.game.launch.GameService
 import com.movtery.zalithlauncher.game.launch.JvmLaunchInfo
 import com.movtery.zalithlauncher.game.launch.JvmLauncher
-import com.movtery.zalithlauncher.game.launch.LaunchConfig
 import com.movtery.zalithlauncher.game.launch.Launcher
 import com.movtery.zalithlauncher.game.launch.handler.AbstractHandler
 import com.movtery.zalithlauncher.game.launch.handler.GameHandler
 import com.movtery.zalithlauncher.game.launch.handler.HandlerType
 import com.movtery.zalithlauncher.game.launch.handler.JVMHandler
 import com.movtery.zalithlauncher.game.multirt.RuntimesManager
-import com.movtery.zalithlauncher.game.plugin.PluginLoader
-import com.movtery.zalithlauncher.game.renderer.Renderers
 import com.movtery.zalithlauncher.game.version.installed.Version
 import com.movtery.zalithlauncher.setting.AllSettings
 import com.movtery.zalithlauncher.terracotta.TerracottaVPNService
 import com.movtery.zalithlauncher.ui.base.BaseAppCompatActivity
-import com.movtery.zalithlauncher.ui.base.ObserveFullScreenSetting
+import com.movtery.zalithlauncher.ui.base.applyFullscreen
 import com.movtery.zalithlauncher.ui.components.rememberBoxSize
 import com.movtery.zalithlauncher.ui.control.input.HidableInputLayout
 import com.movtery.zalithlauncher.ui.control.input.TextInputMode
@@ -110,13 +106,12 @@ import kotlinx.coroutines.withContext
 import org.lwjgl.glfw.CallbackBridge
 import java.io.File
 import java.io.IOException
-import kotlin.time.Duration.Companion.milliseconds
 import android.graphics.Color as NativeColor
 
 
 private const val INTENT_RUN_GAME = "BUNDLE_RUN_GAME"
 private const val INTENT_RUN_JAR = "INTENT_RUN_JAR"
-private const val INTENT_GAME_CONFIG = "INTENT_GAME_CONFIG"
+private const val INTENT_VERSION = "INTENT_VERSION"
 private const val INTENT_JAR_INFO = "INTENT_JAR_INFO"
 
 data class LaunchSession(
@@ -176,12 +171,12 @@ class VMViewModel : ViewModel() {
 
         _session = when {
             bundle.getBoolean(INTENT_RUN_GAME) -> {
-                val config: LaunchConfig = bundle.getParcelableSafely(INTENT_GAME_CONFIG, LaunchConfig::class.java)
-                    ?: throw IllegalStateException("No launch config has been set.")
+                val version: Version = bundle.getParcelableSafely(INTENT_VERSION, Version::class.java)
+                    ?: throw IllegalStateException("No launch version has been set.")
 
                 val launcher = GameLauncher(
                     activity = activity,
-                    config = config,
+                    version = version,
                     onExit = { code, isSignal ->
                         if (code == 0) {
                             val finishedCount = AllSettings.finishedGame.getValue()
@@ -204,7 +199,7 @@ class VMViewModel : ViewModel() {
                     launcher = launcher,
                     handler = GameHandler(
                         activity = activity,
-                        config = config,
+                        version = version,
                         errorViewModel = errorViewModel,
                         eventViewModel = eventViewModel,
                         gamepadViewModel = gamepadViewModel,
@@ -315,8 +310,6 @@ class VMViewModel : ViewModel() {
 }
 
 class VMActivity : BaseAppCompatActivity(), SurfaceTextureListener, SurfaceHolder.Callback {
-    override fun isIgnoreNotch(): Boolean = AllSettings.gameFullScreen.getValue()
-
     private val errorViewModel: ErrorViewModel by viewModels()
 
     private val eventViewModel: EventViewModel by viewModels()
@@ -338,12 +331,28 @@ class VMActivity : BaseAppCompatActivity(), SurfaceTextureListener, SurfaceHolde
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        window.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(android.graphics.Color.BLACK))
+        overridePendingTransition(0, 0)
+        requestWindowFeature(android.view.Window.FEATURE_NO_TITLE)
+        window.setFlags(
+            WindowManager.LayoutParams.FLAG_FULLSCREEN,
+            WindowManager.LayoutParams.FLAG_FULLSCREEN
+        )
+        window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+
         super.onCreate(savedInstanceState)
-        //加载渲染器
-        Renderers.init()
-        //加载插件
-        PluginLoader.loadAllPlugins(this, false)
-        refreshData()
+
+        Thread.setDefaultUncaughtExceptionHandler { _, throwable ->
+            android.util.Log.e("ModulaLaunch", "CRASH: ${throwable.message}", throwable)
+            runOnUiThread {
+                android.app.AlertDialog.Builder(this)
+                    .setTitle("Game Launch Error")
+                    .setMessage(throwable.javaClass.simpleName + ":\n" + throwable.message + "\n\nCause: " + throwable.cause?.message)
+                    .setPositiveButton("BACK") { _, _ -> finish() }
+                    .setCancelable(false)
+                    .show()
+            }
+        }
 
         //初始化物理鼠标连接检查器
         PhysicalMouseChecker.initChecker(this)
@@ -372,6 +381,13 @@ class VMActivity : BaseAppCompatActivity(), SurfaceTextureListener, SurfaceHolde
                 }
             }
         )
+        
+        if (bundle.getBoolean("advanced_debug", false)) {
+            lifecycleScope.launch(Dispatchers.IO) {
+                delay(15000L) // Wait 15s for the game to be fully loaded
+                org.lwjgl.glfw.CallbackBridge.sendKeyPress(com.movtery.zalithlauncher.game.keycodes.LwjglGlfwKeycode.GLFW_KEY_F3.toInt())
+            }
+        }
 
         //设置画面渲染输出回调
         CallbackBridge.setGraphicOutputListener {
@@ -387,7 +403,6 @@ class VMActivity : BaseAppCompatActivity(), SurfaceTextureListener, SurfaceHolde
         }
 
         val logFile = withLauncher { getLogFile() }
-        logFile.parentFile?.mkdirs() // 换过一次日志文件路径，此处创建父目录是必要的
         if (!logFile.exists() && !logFile.createNewFile()) throw IOException("Failed to create a new log file")
         LoggerBridge.start(logFile.absolutePath)
 
@@ -445,7 +460,6 @@ class VMActivity : BaseAppCompatActivity(), SurfaceTextureListener, SurfaceHolde
 
         setContent {
             ZalithLauncherTheme {
-                ObserveFullScreenSetting(AllSettings.gameFullScreen.state)
                 Screen {
                     withHandler {
                         ComposableLayout(vmViewModel.textInputMode)
@@ -491,9 +505,15 @@ class VMActivity : BaseAppCompatActivity(), SurfaceTextureListener, SurfaceHolde
 
     override fun onResume() {
         super.onResume()
+        overridePendingTransition(0, 0)
         withHandler { onResume() }
         CallbackBridge.nativeSetWindowAttrib(LwjglGlfwKeycode.GLFW_FOCUSED, 1)
         CallbackBridge.nativeSetWindowAttrib(LwjglGlfwKeycode.GLFW_HOVERED, 1)
+    }
+
+    override fun finish() {
+        super.finish()
+        overridePendingTransition(0, 0)
     }
 
     override fun onPause() {
@@ -527,7 +547,7 @@ class VMActivity : BaseAppCompatActivity(), SurfaceTextureListener, SurfaceHolde
         super.onPostResume()
         lifecycleScope.launch {
             if (vmViewModel.isRunning) {
-                delay(50L.milliseconds)
+                delay(50L)
                 withContext(Dispatchers.Main) {
                     refreshWindowSize(screenSize = vmViewModel.screenSize)
                 }
@@ -693,7 +713,7 @@ class VMActivity : BaseAppCompatActivity(), SurfaceTextureListener, SurfaceHolde
 
         BoxWithConstraints(
             modifier = Modifier
-                .fillMaxSize()
+                .applyFullscreen(AllSettings.gameFullScreen.state)
                 .background(Color.Black)
         ) {
             val screenSize = rememberBoxSize()
@@ -752,16 +772,16 @@ class VMActivity : BaseAppCompatActivity(), SurfaceTextureListener, SurfaceHolde
  * 让VMActivity进入运行游戏模式
  * @param version 指定版本
  */
-fun runGame(
-    context: Context,
-    version: Version,
-    account: Account,
-) {
+fun runGame(context: Context, version: Version) {
     val intent = Intent(context, VMActivity::class.java).apply {
         putExtra(INTENT_RUN_GAME, true)
-        putExtra(INTENT_GAME_CONFIG, LaunchConfig(version, account))
+        putExtra(INTENT_VERSION, version)
+        putExtra("advanced_debug", AllSettings.advancedDebug.state)
+        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        addFlags(Intent.FLAG_ACTIVITY_NO_ANIMATION)
     }
     context.startActivity(intent)
+    (context as? android.app.Activity)?.overridePendingTransition(0, 0)
 }
 
 /**
@@ -792,6 +812,9 @@ fun runJar(
     val intent = Intent(context, VMActivity::class.java).apply {
         putExtra(INTENT_RUN_JAR, true)
         putExtra(INTENT_JAR_INFO, jvmLaunchInfo)
+        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        addFlags(Intent.FLAG_ACTIVITY_NO_ANIMATION)
     }
     context.startActivity(intent)
+    (context as? android.app.Activity)?.overridePendingTransition(0, 0)
 }

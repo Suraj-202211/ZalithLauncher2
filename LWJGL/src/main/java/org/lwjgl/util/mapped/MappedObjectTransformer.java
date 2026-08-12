@@ -64,6 +64,7 @@ import static org.objectweb.asm.Opcodes.*;
  *
  * @author Riven
  */
+@SuppressWarnings("null")
 public class MappedObjectTransformer {
 
 	static final boolean PRINT_ACTIVITY = LWJGLUtil.DEBUG && LWJGLUtil.getPrivilegedBoolean("org.lwjgl.util.mapped.PrintActivity");
@@ -664,7 +665,7 @@ public class MappedObjectTransformer {
 					/*
 					We need this map because we insert/remove instructions from the stream and we need a way
 					to match each original instruction with the corresponding frame.
-					TODO: Can we keep track of everything more efficiently without a map?
+					NOTE: Can we keep track of everything more efficiently without a map?
 					 */
 					final Map<AbstractInsnNode, Frame<BasicValue>> frameMap = new HashMap<AbstractInsnNode, Frame<BasicValue>>();
 					for ( int i = 0; i < frames.length; i++ )
@@ -897,7 +898,6 @@ public class MappedObjectTransformer {
 		mappedSubtype = className_to_subtype.get(fieldInsn.owner);
 		if ( mappedSubtype == null ) { // early out
 			// MappedSet.view
-			outer:
 			if ( "view".equals(fieldInsn.name) && fieldInsn.owner.startsWith(MAPPEDSET_PREFIX) )
 				return generateSetViewInstructions(fieldInsn);
 
@@ -1224,7 +1224,7 @@ public class MappedObjectTransformer {
 	// -------------------[ MACROS & UTILS ]------------------
 	// -------------------------------------------------------
 
-	private static void getClassEnums(final Class clazz, final Map<Integer, String> map, final String... prefixFilters) {
+	private static void getClassEnums(final Class<?> clazz, final Map<Integer, String> map, final String... prefixFilters) {
 		try {
 			OUTER:
 			for ( Field field : clazz.getFields() ) {

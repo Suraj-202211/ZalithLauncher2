@@ -47,9 +47,9 @@ object TaskSystem {
 
         allJobs[task.id] = scope.launch(task.dispatcher) {
             try {
-                task.updateStage(TaskStage.RUNNING)
+                task.taskState = TaskState.RUNNING
                 task.task(this@launch, task)
-                task.updateStage(TaskStage.COMPLETED)
+                task.taskState = TaskState.COMPLETED
             } catch (th: Throwable) {
                 if (th is CancellationException || th.isInterruptedIOException()) return@launch
                 task.onError(th)

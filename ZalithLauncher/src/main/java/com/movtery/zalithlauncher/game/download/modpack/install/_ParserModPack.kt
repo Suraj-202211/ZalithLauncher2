@@ -28,15 +28,13 @@ import com.movtery.zalithlauncher.game.download.modpack.platform.modrinth.Modrin
 import com.movtery.zalithlauncher.utils.GSON
 import com.movtery.zalithlauncher.utils.file.extractFromZip
 import com.movtery.zalithlauncher.utils.file.readText
-import com.movtery.zalithlauncher.utils.logging.Logger
+import com.movtery.zalithlauncher.utils.logging.Logger.lWarning
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.IOException
 import org.apache.commons.compress.archivers.zip.ZipFile as ApacheZipFile
 import java.util.zip.ZipFile as JdkZipFile
-
-private const val TAG = "ParserModPack"
 
 /**
  * 用于统一解析流程的整合包解析配置
@@ -100,13 +98,11 @@ suspend fun <T> withZipFile(
     loaderJdk: suspend (JdkZipFile) -> T,
     loaderApache: suspend (ApacheZipFile) -> T
 ): T {
-    return withContext(Dispatchers.IO) {
-        try {
-            JdkZipFile(file).use { loaderJdk(it) }
-        } catch (e: Exception) {
-            Logger.warning(TAG, "JDK ZipFile failed to parse ${file.name}, fallback to Apache ZipFile.", e)
-            ApacheZipFile.builder().setFile(file).get().use { loaderApache(it) }
-        }
+    return try {
+        JdkZipFile(file).use { loaderJdk(it) }
+    } catch (e: Exception) {
+        lWarning("JDK ZipFile failed to parse ${file.name}, fallback to Apache ZipFile.", e)
+        ApacheZipFile.builder().setFile(file).get().use { loaderApache(it) }
     }
 }
 

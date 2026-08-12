@@ -72,6 +72,7 @@ fun DownloadResourcePackScreen(
         changeOperation = { operation = it },
         doInstall = { classes, version, versions ->
             downloadSingleForVersions(
+                context = context,
                 version = version,
                 versions = versions,
                 folder = classes.versionFolder.folderName,

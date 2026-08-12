@@ -27,6 +27,8 @@ import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.foundation.border
 
 /**
  * 自定义主页内的高级图片组件，Markdown自身的图片语法太过简陋
@@ -46,3 +48,4 @@ fun CustomHomeImage(
         contentDescription = null,
     )
 }
+

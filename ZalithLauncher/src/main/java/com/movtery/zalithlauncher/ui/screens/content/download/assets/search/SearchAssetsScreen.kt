@@ -59,7 +59,8 @@ import com.movtery.zalithlauncher.ui.screens.content.download.assets.elements.Re
 import com.movtery.zalithlauncher.ui.screens.content.download.assets.elements.SearchAssetsState
 import com.movtery.zalithlauncher.ui.screens.content.download.assets.elements.SearchFilter
 import com.movtery.zalithlauncher.utils.animation.swapAnimateDpAsState
-import com.movtery.zalithlauncher.utils.logging.Logger
+import com.movtery.zalithlauncher.utils.logging.Logger.lInfo
+import com.movtery.zalithlauncher.utils.logging.Logger.lWarning
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -68,8 +69,6 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-
-private const val TAG = "SearchAssetsScreen"
 
 /**
  * 资源搜索屏幕的 view model
@@ -168,7 +167,7 @@ private class SearchScreenViewModel(
 
     private fun putResult(result: PlatformSearchResult) {
         result.getAssetsPage(platformClasses).also { page ->
-            Logger.info(TAG, "Searched page info: {pageNumber: ${page.pageNumber}, pageIndex: ${page.pageIndex}, totalPage: ${page.totalPage}, isLastPage: ${page.isLastPage}}")
+            lInfo("Searched page info: {pageNumber: ${page.pageNumber}, pageIndex: ${page.pageIndex}, totalPage: ${page.totalPage}, isLastPage: ${page.isLastPage}}")
 
             val targetIndex = page.pageNumber - 1
 
@@ -212,7 +211,7 @@ private class SearchScreenViewModel(
             runCatching {
                 MinecraftVersions.refreshVersions(force = false)
             }.onFailure {
-                Logger.warning(TAG, "Failed to refresh Minecraft versions")
+                lWarning("Failed to refresh Minecraft versions")
             }
         }
     }

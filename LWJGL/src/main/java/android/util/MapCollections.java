@@ -49,6 +49,7 @@ abstract class MapCollections<K, V> {
         }
 
         @Override
+        @SuppressWarnings("unchecked")
         public T next() {
             Object res = colGetEntry(mIndex, mOffset);
             mIndex++;
@@ -102,6 +103,7 @@ abstract class MapCollections<K, V> {
         }
 
         @Override
+        @SuppressWarnings("unchecked")
         public K getKey() {
             if (!mEntryValid) {
                 throw new IllegalStateException(
@@ -111,6 +113,7 @@ abstract class MapCollections<K, V> {
         }
 
         @Override
+        @SuppressWarnings("unchecked")
         public V getValue() {
             if (!mEntryValid) {
                 throw new IllegalStateException(
@@ -498,7 +501,8 @@ abstract class MapCollections<K, V> {
             array = newArray;
         }
         for (int i=0; i<N; i++) {
-            array[i] = (T)colGetEntry(i, offset);
+            @SuppressWarnings("unchecked") T element = (T)colGetEntry(i, offset);
+            array[i] = element;
         }
         if (array.length > N) {
             array[N] = null;

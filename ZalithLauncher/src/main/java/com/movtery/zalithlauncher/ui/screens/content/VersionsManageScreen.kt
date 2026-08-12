@@ -18,8 +18,8 @@
 
 package com.movtery.zalithlauncher.ui.screens.content
 
+import android.content.Context
 import android.os.Environment
-import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -33,15 +33,10 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.scrollbar
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.State
-import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -85,39 +80,81 @@ import com.movtery.zalithlauncher.ui.screens.content.elements.VersionCategoryIte
 import com.movtery.zalithlauncher.ui.screens.content.elements.VersionItemLayout
 import com.movtery.zalithlauncher.ui.screens.content.elements.VersionsOperation
 import com.movtery.zalithlauncher.utils.animation.swapAnimateDpAsState
-import com.movtery.zalithlauncher.utils.canHandlePermission
 import com.movtery.zalithlauncher.utils.checkStoragePermissions
 import com.movtery.zalithlauncher.viewmodel.ErrorViewModel
 import com.movtery.zalithlauncher.viewmodel.EventViewModel
 import com.movtery.zalithlauncher.viewmodel.ScreenBackStackViewModel
 import com.movtery.zalithlauncher.viewmodel.sendKeepScreen
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 
 private class VersionsScreenViewModel : ViewModel() {
     /** 版本类别分类 */
     var versionCategory by mutableStateOf(VersionCategory.ALL)
         private set
-    /** 重排序刷新key */
-    var resortKey by mutableIntStateOf(0)
-        private set
 
     /** 游戏路径相关操作 */
     var gamePathOperation by mutableStateOf<GamePathOperation>(GamePathOperation.None)
 
+    private val _versions = MutableStateFlow<List<Version>>(emptyList())
+    val versions = _versions.asStateFlow()
+
     /** 全部版本的数量 */
     var allVersionsCount by mutableIntStateOf(0)
+        private set
     /** 原版版本数量 */
     var vanillaVersionsCount by mutableIntStateOf(0)
+        private set
     /** 模组加载器版本数量 */
     var modloaderVersionsCount by mutableIntStateOf(0)
+        private set
 
     fun startRefreshVersions() {
         if (!VersionsManager.isRefreshing.value) {
+            _versions.update { emptyList() }
             VersionsManager.refresh("VersionsScreenViewModel.startRefreshVersions")
+        }
+    }
+
+    /**
+     * 刷新当前版本列表
+     */
+    suspend fun refreshVersions(
+        currentVersions: List<Version>,
+        clearCurrent: Boolean = true
+    ) {
+        withContext(Dispatchers.Main) {
+            if (clearCurrent) {
+                _versions.update { emptyList() }
+            }
+
+            val filteredVersions = withContext(Dispatchers.Default) {
+                allVersionsCount = currentVersions.size
+
+                val vanillaVersions = currentVersions
+                    .filter { ver -> ver.versionType == VersionType.VANILLA }
+                    .also { vanillaVersionsCount = it.size }
+                val modloaderVersions = currentVersions
+                    .filter { ver -> ver.versionType == VersionType.MODLOADERS }
+                    .also { modloaderVersionsCount = it.size }
+
+                when (versionCategory) {
+                    VersionCategory.ALL -> currentVersions
+                    VersionCategory.VANILLA -> vanillaVersions
+                    VersionCategory.MODLOADER -> modloaderVersions
+                }
+            }
+
+            _versions.update {
+                filteredVersions.sortedWith(VersionComparator)
+            }
         }
     }
 
@@ -132,6 +169,7 @@ private class VersionsScreenViewModel : ViewModel() {
         currentJob = viewModelScope.launch {
             mutex.withLock {
                 this@VersionsScreenViewModel.versionCategory = category
+                refreshVersions(VersionsManager.versions, false)
             }
         }
     }
@@ -140,7 +178,9 @@ private class VersionsScreenViewModel : ViewModel() {
      * 重新排序当前版本列表
      */
     fun resortVersions() {
-        resortKey++
+        _versions.update {
+            it.sortedWith(VersionComparator)
+        }
     }
 
     /** 清理游戏文件操作 */
@@ -150,10 +190,12 @@ private class VersionsScreenViewModel : ViewModel() {
     var cleaner by mutableStateOf<GameAssetCleaner?>(null)
 
     fun cleanUnusedFiles(
+        context: Context,
         onStart: () -> Unit = {},
         onStop: () -> Unit = {}
     ) {
         cleaner = GameAssetCleaner(
+            context = context,
             scope = viewModelScope
         ).also {
             cleanupOperation = CleanupOperation.Clean
@@ -179,8 +221,22 @@ private class VersionsScreenViewModel : ViewModel() {
         cleanupOperation = CleanupOperation.None
     }
 
+    private val listener: suspend (List<Version>) -> Unit = { versions ->
+        refreshVersions(versions)
+    }
+
+    init {
+        viewModelScope.launch {
+            //初始化时刷新一次版本
+            refreshVersions(VersionsManager.versions)
+        }
+
+        VersionsManager.registerListener(listener)
+    }
+
     override fun onCleared() {
         cancelCleaner()
+        VersionsManager.unregisterListener(listener)
         currentJob?.cancel()
     }
 }
@@ -195,35 +251,6 @@ private fun rememberVersionViewModel() : VersionsScreenViewModel {
 }
 
 @Composable
-private fun rememberVersions(
-    versions: StateFlow<List<Version>>,
-    viewModel: VersionsScreenViewModel,
-): State<List<Version>> {
-    val vers by versions.collectAsStateWithLifecycle()
-    val category = viewModel.versionCategory
-    val resortKey = viewModel.resortKey
-
-    return remember(vers, category, resortKey) {
-        derivedStateOf {
-            viewModel.allVersionsCount = vers.size
-
-            val vanillaVersions = vers
-                .filter { ver -> ver.versionType == VersionType.VANILLA }
-                .also { viewModel.vanillaVersionsCount = it.size }
-            val modloaderVersions = vers
-                .filter { ver -> ver.versionType == VersionType.MODLOADERS }
-                .also { viewModel.modloaderVersionsCount = it.size }
-
-            when (category) {
-                VersionCategory.ALL -> vers
-                VersionCategory.VANILLA -> vanillaVersions
-                VersionCategory.MODLOADER -> modloaderVersions
-            }.sortedWith(VersionComparator)
-        }
-    }
-}
-
-@Composable
 fun VersionsManageScreen(
     backScreenViewModel: ScreenBackStackViewModel,
     navigateToVersions: (Version) -> Unit,
@@ -232,8 +259,9 @@ fun VersionsManageScreen(
     submitError: (ErrorViewModel.ThrowableMessage) -> Unit
 ) {
     val viewModel = rememberVersionViewModel()
+    val context = LocalContext.current
 
-    val versions by rememberVersions(VersionsManager.versions, viewModel)
+    val versions by viewModel.versions.collectAsStateWithLifecycle()
     val currentVersion by VersionsManager.currentVersion.collectAsStateWithLifecycle()
     val isRefreshing by VersionsManager.isRefreshing.collectAsStateWithLifecycle()
 
@@ -308,6 +336,7 @@ fun VersionsManageScreen(
                 cleaner = viewModel.cleaner,
                 onClean = {
                     viewModel.cleanUnusedFiles(
+                        context = context,
                         onStart = {
                             eventViewModel.sendKeepScreen(true)
                         },
@@ -358,7 +387,6 @@ private fun LeftMenu(
                 GamePathItemLayout(
                     item = pathItem,
                     selected = currentPath == pathItem.path,
-                    enabled = canHandlePermission,
                     onClick = {
                         if (!isRefreshing) { //避免频繁刷新，防止currentGameInfo意外重置
                             if (pathItem.id == GamePathManager.DEFAULT_ID) {
@@ -403,8 +431,7 @@ private fun LeftMenu(
                         }
                     )
                 }
-            },
-            enabled = canHandlePermission
+            }
         ) {
             MarqueeText(text = stringResource(R.string.versions_manage_game_path_add_new))
         }
@@ -420,7 +447,6 @@ private fun LeftMenu(
     }
 }
 
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun VersionsLayout(
     modifier: Modifier = Modifier,
@@ -515,18 +541,12 @@ private fun VersionsLayout(
                 }
 
                 if (versions.isNotEmpty()) {
-                    val scrollState = rememberLazyListState()
                     LazyColumn(
                         modifier = Modifier
                             .fillMaxWidth()
                             .weight(1f)
-                            .scrollbar(
-                                state = scrollState.scrollIndicatorState,
-                                orientation = Orientation.Vertical,
-                            )
                             .clipToBounds(),
-                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
-                        state = scrollState,
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
                     ) {
                         items(versions, key = { it.toString() }) { version ->
                             VersionItemLayout(

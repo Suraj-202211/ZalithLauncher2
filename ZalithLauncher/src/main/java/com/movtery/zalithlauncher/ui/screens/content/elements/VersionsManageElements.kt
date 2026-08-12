@@ -18,7 +18,6 @@
 
 package com.movtery.zalithlauncher.ui.screens.content.elements
 
-import androidx.annotation.DrawableRes
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.Animatable
 import androidx.compose.foundation.Image
@@ -35,6 +34,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.DropdownMenu
@@ -60,8 +60,6 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.ColorFilter
-import androidx.compose.ui.graphics.DefaultAlpha
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.painter.Painter
@@ -86,7 +84,6 @@ import com.movtery.zalithlauncher.game.version.installed.Version
 import com.movtery.zalithlauncher.game.version.installed.VersionsManager
 import com.movtery.zalithlauncher.game.version.installed.cleanup.CleanFailedException
 import com.movtery.zalithlauncher.game.version.installed.cleanup.GameAssetCleaner
-import com.movtery.zalithlauncher.ui.androidText
 import com.movtery.zalithlauncher.ui.components.LittleTextLabel
 import com.movtery.zalithlauncher.ui.components.MarqueeText
 import com.movtery.zalithlauncher.ui.components.SimpleAlertDialog
@@ -95,17 +92,14 @@ import com.movtery.zalithlauncher.ui.components.SimpleEditDialog
 import com.movtery.zalithlauncher.ui.components.SimpleTaskDialog
 import com.movtery.zalithlauncher.ui.components.TextRailItem
 import com.movtery.zalithlauncher.ui.components.fadeEdge
-import com.movtery.zalithlauncher.ui.components.verticalScrollWithBar
 import com.movtery.zalithlauncher.ui.theme.itemColor
 import com.movtery.zalithlauncher.ui.theme.onItemColor
 import com.movtery.zalithlauncher.utils.animation.getAnimateTween
-import com.movtery.zalithlauncher.utils.logging.Logger
+import com.movtery.zalithlauncher.utils.logging.Logger.lError
 import com.movtery.zalithlauncher.utils.string.getMessageOrToString
 import com.movtery.zalithlauncher.utils.string.isNotEmptyOrBlank
 import com.movtery.zalithlauncher.viewmodel.ErrorViewModel
 import kotlinx.coroutines.Dispatchers
-
-private const val TAG = "VersionsManageElements"
 
 sealed interface GamePathOperation {
     data object None: GamePathOperation
@@ -152,8 +146,7 @@ fun GamePathItemLayout(
     modifier: Modifier = Modifier,
     onClick: () -> Unit = {},
     onRename: () -> Unit = {},
-    onDelete: () -> Unit = {},
-    enabled: Boolean = true,
+    onDelete: () -> Unit = {}
 ) {
     val notDefault = item.id != GamePathManager.DEFAULT_ID
 
@@ -162,9 +155,7 @@ fun GamePathItemLayout(
         colors = NavigationDrawerItemDefaults.colors(),
         label = {
             Column(
-                modifier = Modifier
-                    .padding(top = 4.dp, bottom = 4.dp)
-                    .alpha(if (enabled) 1f else DisabledAlpha)
+                modifier = Modifier.padding(top = 4.dp, bottom = 4.dp)
             ) {
                 Text(
                     modifier = Modifier.basicMarquee(iterations = Int.MAX_VALUE),
@@ -235,9 +226,7 @@ fun GamePathItemLayout(
             }
         },
         selected = selected,
-        onClick = {
-            if (enabled) onClick()
-        }
+        onClick = onClick
     )
 }
 
@@ -247,14 +236,15 @@ fun GamePathOperation(
     changeState: (GamePathOperation) -> Unit,
     submitError: (ErrorViewModel.ThrowableMessage) -> Unit
 ) {
+    val errorText = stringResource(R.string.versions_manage_game_path_error_title)
     fun doRunCatching(block: () -> Unit) {
         runCatching {
             block()
         }.onFailure { e ->
             submitError(
                 ErrorViewModel.ThrowableMessage(
-                    title = androidText(R.string.versions_manage_game_path_error_title),
-                    message = androidText(e.getMessageOrToString())
+                    title = errorText,
+                    message = e.getMessageOrToString()
                 )
             )
         }
@@ -434,17 +424,18 @@ fun VersionsOperation(
             )
         }
         is VersionsOperation.RunTask -> {
+            val errorMessage = stringResource(R.string.versions_manage_task_error)
             SimpleTaskDialog(
                 title = stringResource(versionsOperation.title),
                 task = versionsOperation.task,
                 context = Dispatchers.IO,
                 onDismiss = { updateVersionsOperation(VersionsOperation.None) },
                 onError = { e ->
-                    Logger.error(TAG, "Failed to run task.", e)
+                    lError("Failed to run task.", e)
                     submitError(
                         ErrorViewModel.ThrowableMessage(
-                            title = androidText(R.string.versions_manage_task_error),
-                            message = androidText(e.getMessageOrToString())
+                            title = errorMessage,
+                            message = e.getMessageOrToString()
                         )
                     )
                 }
@@ -636,7 +627,7 @@ fun CleanupOperation(
                         Column(
                             modifier = Modifier
                                 .fadeEdge(state = scrollState)
-                                .verticalScrollWithBar(state = scrollState)
+                                .verticalScroll(state = scrollState)
                         ) {
                             Text(stringResource(R.string.versions_manage_cleanup_failed_files))
                             error.files.forEach { file ->
@@ -654,8 +645,8 @@ fun CleanupOperation(
                 changeOperation(CleanupOperation.None)
                 submitError(
                     ErrorViewModel.ThrowableMessage(
-                        title = androidText(R.string.versions_manage_cleanup_failed),
-                        message = androidText(error.getMessageOrToString())
+                        title = stringResource(R.string.versions_manage_cleanup_failed),
+                        message = error.getMessageOrToString()
                     )
                 )
             }
@@ -688,6 +679,8 @@ fun VersionItemLayout(
     onDeleteClick: () -> Unit = {},
     onPinned: () -> Unit = {}
 ) {
+    val context = LocalContext.current
+
     val scale = remember { Animatable(initialValue = 0.95f) }
     LaunchedEffect(Unit) {
         scale.animateTo(targetValue = 1f, animationSpec = getAnimateTween())
@@ -727,11 +720,11 @@ fun VersionItemLayout(
                     runCatching {
                         version.setPinnedAndSave(!currentValue)
                     }.onFailure { e ->
-                        Logger.error(TAG, "Failed to save version config!", e)
+                        lError("Failed to save version config!", e)
                         submitError(
                             ErrorViewModel.ThrowableMessage(
-                                title = androidText(R.string.versions_config_failed_to_save),
-                                message = androidText(e.getMessageOrToString())
+                                title = context.getString(R.string.versions_config_failed_to_save),
+                                message = e.getMessageOrToString()
                             )
                         )
                     }.onSuccess {
@@ -931,7 +924,7 @@ fun VersionIconImage(
     refreshKey: Any? = null
 ) {
     val defaultIconRes = remember(version) {
-        version?.let { getLoaderIconRes(it.getVersionInfo()?.loaderInfo?.loader) } ?: R.drawable.img_minecraft
+        version?.let { getLoaderIconRes(it) } ?: R.drawable.img_minecraft
     }
     val defaultIcon = painterResource(defaultIconRes)
 
@@ -974,38 +967,8 @@ fun VersionIconImage(
     }
 }
 
-/**
- * 模组加载器图标展示组件，包装 [Image]
- */
-@Composable
-fun ModLoaderIcon(
-    modloader: ModLoader,
-    @DrawableRes
-    defaultIcon: Int,
-    modifier: Modifier = Modifier,
-    alignment: Alignment = Alignment.Center,
-    contentScale: ContentScale = ContentScale.Fit,
-    alpha: Float = DefaultAlpha,
-    colorFilter: ColorFilter? = null,
-) {
-    val icon = getLoaderIconRes(modloader, defaultIcon)
-    Image(
-        modifier = modifier,
-        painter = painterResource(icon),
-        contentDescription = null,
-        alignment = alignment,
-        contentScale = contentScale,
-        alpha = alpha,
-        colorFilter = colorFilter,
-    )
-}
-
-private fun getLoaderIconRes(
-    loader: ModLoader?,
-    @DrawableRes
-    defaultIcon: Int = R.drawable.img_minecraft,
-): Int {
-    return when (loader) {
+private fun getLoaderIconRes(version: Version): Int {
+    return when (version.getVersionInfo()?.loaderInfo?.loader) {
         ModLoader.FABRIC,
         ModLoader.BABRIC -> R.drawable.img_loader_fabric
         ModLoader.LEGACY_FABRIC -> R.drawable.img_loader_legacy_fabric
@@ -1016,6 +979,6 @@ private fun getLoaderIconRes(
         ModLoader.OPTIFINE -> R.drawable.img_loader_optifine
         ModLoader.LITE_LOADER -> R.drawable.img_chicken_old
         ModLoader.CLEANROOM -> R.drawable.img_loader_cleanroom
-        else -> defaultIcon
+        else -> R.drawable.img_minecraft
     }
 }

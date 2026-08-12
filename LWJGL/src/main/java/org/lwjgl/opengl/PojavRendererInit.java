@@ -10,6 +10,7 @@ import javax.annotation.Nullable;
  * any callbacks needed for renderers by using the same FunctionProvider as used for loading
  * GL symbols.
  * */
+@SuppressWarnings("null")
 public class PojavRendererInit {
 
     public static void onCreateCapabilities(FunctionProvider functionProvider) {

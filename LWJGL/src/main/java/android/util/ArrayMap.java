@@ -44,6 +44,7 @@ import java.util.Set;
  */
 public final class ArrayMap<K, V> implements Map<K, V> {
     private static final boolean DEBUG = false;
+    @SuppressWarnings("unused")
     private static final String TAG = "ArrayMap";
 
     /**
@@ -65,7 +66,7 @@ public final class ArrayMap<K, V> implements Map<K, V> {
     /**
      * @hide Special immutable empty ArrayMap.
      */
-    public static final ArrayMap EMPTY = new ArrayMap(true);
+    public static final ArrayMap<?, ?> EMPTY = new ArrayMap<>(true);
 
     /**
      * Caches of small array objects to avoid spamming garbage.  The cache
@@ -375,6 +376,7 @@ public final class ArrayMap<K, V> implements Map<K, V> {
      * or null if there is no such key.
      */
     @Override
+    @SuppressWarnings("unchecked")
     public V get(Object key) {
         final int index = indexOfKey(key);
         return index >= 0 ? (V)mArray[(index<<1)+1] : null;
@@ -385,6 +387,7 @@ public final class ArrayMap<K, V> implements Map<K, V> {
      * @param index The desired index, must be between 0 and {@link #size()}-1.
      * @return Returns the key stored at the given index.
      */
+    @SuppressWarnings("unchecked")
     public K keyAt(int index) {
         return (K)mArray[index << 1];
     }
@@ -394,6 +397,7 @@ public final class ArrayMap<K, V> implements Map<K, V> {
      * @param index The desired index, must be between 0 and {@link #size()}-1.
      * @return Returns the value stored at the given index.
      */
+    @SuppressWarnings("unchecked")
     public V valueAt(int index) {
         return (V)mArray[(index << 1) + 1];
     }
@@ -404,6 +408,7 @@ public final class ArrayMap<K, V> implements Map<K, V> {
      * @param value The new value to store at this index.
      * @return Returns the previous value at the given index.
      */
+    @SuppressWarnings("unchecked")
     public V setValueAt(int index, V value) {
         index = (index << 1) + 1;
         V old = (V)mArray[index];
@@ -440,6 +445,7 @@ public final class ArrayMap<K, V> implements Map<K, V> {
         }
         if (index >= 0) {
             index = (index<<1) + 1;
+            @SuppressWarnings("unchecked")
             final V old = (V)mArray[index];
             mArray[index] = value;
             return old;
@@ -634,7 +640,8 @@ public final class ArrayMap<K, V> implements Map<K, V> {
                 mArray[(mSize << 1) + 1] = null;
             }
         }
-        return (V)old;
+        @SuppressWarnings("unchecked") V ret = (V)old;
+        return ret;
     }
 
     /**

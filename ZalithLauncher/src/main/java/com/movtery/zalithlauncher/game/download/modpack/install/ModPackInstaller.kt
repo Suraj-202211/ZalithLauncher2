@@ -33,9 +33,9 @@ import com.movtery.zalithlauncher.game.version.installed.VersionConfig
 import com.movtery.zalithlauncher.game.version.installed.VersionFolders
 import com.movtery.zalithlauncher.game.version.installed.VersionsManager
 import com.movtery.zalithlauncher.path.PathManager
-import com.movtery.zalithlauncher.ui.androidText
 import com.movtery.zalithlauncher.utils.file.copyDirectoryContents
-import com.movtery.zalithlauncher.utils.logging.Logger
+import com.movtery.zalithlauncher.utils.logging.Logger.lDebug
+import com.movtery.zalithlauncher.utils.logging.Logger.lInfo
 import com.movtery.zalithlauncher.utils.network.downloadFileSuspend
 import com.movtery.zalithlauncher.utils.network.downloadFromMirrorListSuspend
 import com.movtery.zalithlauncher.utils.network.isUsingMobileData
@@ -46,8 +46,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.withContext
 import org.apache.commons.io.FileUtils
 import java.io.File
-
-private const val TAG = "ModPackInstaller"
 
 /**
  * 在线下载的整合包安装器，仅支持 CurseForge、Modrinth
@@ -135,7 +133,7 @@ class ModPackInstaller(
                 //清除上一次安装的缓存（如果有的话，可能会影响这次的安装结果）
                 addTask(
                     id = "Download.ModPack.ClearTemp",
-                    title = androidText(R.string.download_install_clear_temp),
+                    title = context.getString(R.string.download_install_clear_temp),
                     icon = R.drawable.ic_auto_delete_outlined
                 ) { _ ->
                     clearTempModPackDir()
@@ -157,7 +155,7 @@ class ModPackInstaller(
                 //下载整合包安装包
                 addTask(
                     id = "Download.ModPack.Installer",
-                    title = androidText(R.string.download_game_install_base_download_file2, version.platformDisplayName())
+                    title = context.getString(R.string.download_game_install_base_download_file2, version.platformDisplayName())
                 ) { task ->
                     val totalFileSize = version.platformFileSize().toDouble()
                     var downloadedSize = 0L
@@ -186,8 +184,7 @@ class ModPackInstaller(
                         )
                     }
                     //下载icon图片
-                    task.updateProgress(-1f)
-                    task.updateMessage(null)
+                    task.updateProgress(-1f, null)
                     iconUrl?.let { iconUrl ->
                         downloadFileSuspend(
                             url = iconUrl,
@@ -199,7 +196,7 @@ class ModPackInstaller(
                 //解析整合包、解压整合包
                 addTask(
                     id = "Parse.ModPack",
-                    title = androidText(R.string.download_modpack_install_parse),
+                    title = context.getString(R.string.download_modpack_install_parse),
                     icon = R.drawable.ic_build_outlined
                 ) { task ->
                     modpackInfo = parserModPack(
@@ -213,7 +210,7 @@ class ModPackInstaller(
                 //等待用户输入预安装版本名称
                 addTask(
                     id = "Download.ModPack.WaitUserForVersionName",
-                    title = androidText(R.string.download_install_input_version_name),
+                    title = context.getString(R.string.download_install_input_version_name),
                     icon = R.drawable.ic_edit_outlined
                 ) { task ->
                     task.updateProgress(-1f)
@@ -224,7 +221,7 @@ class ModPackInstaller(
                 addTask(
                     id = "Download.ModPack.Mods",
                     dispatcher = Dispatchers.IO,
-                    title = androidText(R.string.download_modpack_download)
+                    title = context.getString(R.string.download_modpack_download)
                 ) { task ->
                     val downloadTask = ModDownloader(modpackInfo.files)
                     downloadTask.startDownload(task)
@@ -233,7 +230,7 @@ class ModPackInstaller(
                 //分析并匹配模组加载器信息，并构造出游戏安装信息
                 addTask(
                     id = "ModPack.Retrieve.Loader",
-                    title = androidText(R.string.download_modpack_get_loaders),
+                    title = context.getString(R.string.download_modpack_get_loaders),
                     icon = R.drawable.ic_build_outlined
                 ) { _ ->
                     //构建游戏安装信息
@@ -250,7 +247,7 @@ class ModPackInstaller(
                                 //已经完成游戏安装，开始最终任务
                                 //整合包临时文件安装任务
                                 val finalTask = TitledTask(
-                                    title = androidText(R.string.download_modpack_final_move),
+                                    title = context.getString(R.string.download_modpack_final_move),
                                     runningIcon = R.drawable.ic_build_outlined,
                                     task = createFinalInstallTask(
                                         targetClientDir = targetClientDir,
@@ -283,7 +280,7 @@ class ModPackInstaller(
     private suspend fun clearTempModPackDir() = withContext(Dispatchers.IO) {
         PathManager.DIR_CACHE_MODPACK_DOWNLOADER.takeIf { it.exists() }?.let { folder ->
             FileUtils.deleteQuietly(folder)
-            Logger.info(TAG, "Temporary modpack directory cleared.")
+            lInfo("Temporary modpack directory cleared.")
         }
     }
 
@@ -298,38 +295,42 @@ class ModPackInstaller(
         id = "ModPack.Final.Install",
         dispatcher = Dispatchers.IO,
         task = { task ->
-            task.updateProgress(-1f)
-            //复制文件
-            copyDirectoryContents(
-                tempVersionsDir,
-                targetClientDir
-            ) { percentage ->
-                task.updateProgress(percentage = percentage)
+            try {
+                task.updateProgress(-1f)
+                //复制文件
+                copyDirectoryContents(
+                    tempVersionsDir,
+                    targetClientDir
+                ) { percentage ->
+                    task.updateProgress(percentage = percentage)
+                }
+
+                //复制整合包icon
+                if (tempIconFile.exists() && tempIconFile.isFile) {
+                    val iconFile = VersionsManager.getVersionIconFile(targetClientDir)
+                    if (iconFile.exists()) FileUtils.deleteQuietly(iconFile)
+                    tempIconFile.copyTo(iconFile)
+                }
+
+                //创建版本信息
+                VersionConfig.createIsolation(targetClientDir).apply {
+                    this.versionSummary = modpackInfo.summary ?: "" //整合包描述
+                    this.ramAllocation = modpackInfo.ram ?: -1
+                }.save()
+
+                //清理临时整合包目录
+                task.updateProgress(-1f, R.string.download_install_clear_temp)
+                clearTempModPackDir()
+            } catch (e: Exception) {
+                com.movtery.zalithlauncher.utils.logging.Logger.lError("Failed to finalize modpack installation: Moving files step crashed.", e)
+                throw e
             }
-
-            //复制整合包icon
-            if (tempIconFile.exists() && tempIconFile.isFile) {
-                val iconFile = VersionsManager.getVersionIconFile(targetClientDir)
-                if (iconFile.exists()) FileUtils.deleteQuietly(iconFile)
-                tempIconFile.copyTo(iconFile)
-            }
-
-            //创建版本信息
-            VersionConfig.createIsolation(targetClientDir).apply {
-                this.versionSummary = modpackInfo.summary ?: "" //整合包描述
-                this.ramAllocation = modpackInfo.ram ?: -1
-            }.save()
-
-            //清理临时整合包目录
-            task.updateProgress(-1f)
-            task.updateMessage(androidText(R.string.download_install_clear_temp))
-            clearTempModPackDir()
         }
     )
 
     private fun File.createDirAndLog(): File {
         this.mkdirs()
-        Logger.debug(TAG, "Created directory: $this")
+        lDebug("Created directory: $this")
         return this
     }
 }

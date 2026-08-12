@@ -27,9 +27,9 @@ import com.movtery.zalithlauncher.game.account.auth_server.data.AuthServer
 import com.movtery.zalithlauncher.game.account.auth_server.data.AuthServerDao
 import com.movtery.zalithlauncher.path.PathManager
 import com.movtery.zalithlauncher.setting.AllSettings
-import com.movtery.zalithlauncher.ui.androidText
 import com.movtery.zalithlauncher.utils.isInGreaterChina
-import com.movtery.zalithlauncher.utils.logging.Logger
+import com.movtery.zalithlauncher.utils.logging.Logger.lError
+import com.movtery.zalithlauncher.utils.logging.Logger.lInfo
 import com.movtery.zalithlauncher.utils.network.isNetworkAvailable
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -40,8 +40,6 @@ import kotlinx.coroutines.launch
 import org.apache.commons.io.FileUtils
 import java.io.File
 import java.util.concurrent.CopyOnWriteArrayList
-
-private const val TAG = "AccountManager"
 
 object AccountsManager {
     private val scope = CoroutineScope(Dispatchers.IO)
@@ -96,23 +94,28 @@ object AccountsManager {
     }
 
     private suspend fun suspendReloadAccounts() {
-        val loadedAccounts = accountDao.getAllAccounts()
-        _accounts.clear()
-        _accounts.addAll(loadedAccounts)
+        kotlinx.coroutines.withTimeoutOrNull(5000) {
+            val loadedAccounts = accountDao.getAllAccounts()
+            _accounts.clear()
+            _accounts.addAll(loadedAccounts)
 
-        _accounts.sortWith(compareBy<Account>(
-            { it.accountTypePriority() },
-            { it.username },
-        ))
-        _accountsFlow.value = _accounts.toList()
+            _accounts.sortWith(compareBy<Account>(
+                { it.accountTypePriority() },
+                { it.username },
+            ))
+            _accountsFlow.value = _accounts.toList()
 
-        if (_accounts.isNotEmpty() && !isAccountExists(AllSettings.currentAccount.getValue())) {
-            setCurrentAccountInternal(_accounts[0])
+            if (_accounts.isNotEmpty() && !isAccountExists(AllSettings.currentAccount.getValue())) {
+                setCurrentAccountInternal(_accounts[0])
+            }
+
+            refreshCurrentAccountState()
+
+            lInfo("Loaded ${_accounts.size} accounts")
+        } ?: run {
+            lError("Timeout while reloading accounts")
+            _currentAccountFlow.update { null }
         }
-
-        refreshCurrentAccountState()
-
-        Logger.info(TAG, "Loaded ${_accounts.size} accounts")
     }
 
     /**
@@ -127,7 +130,7 @@ object AccountsManager {
             _authServers.sortWith { o1, o2 -> o1.serverName.compareTo(o2.serverName) }
             _authServersFlow.value = _authServers.toList()
 
-            Logger.info(TAG, "Loaded ${_authServers.size} auth servers")
+            lInfo("Loaded ${_authServers.size} auth servers")
         }
     }
 
@@ -178,7 +181,7 @@ object AccountsManager {
                 context = context,
                 account = account,
                 onSuccess = { account, task ->
-                    task.updateMessage(androidText(R.string.account_logging_in_saving))
+                    task.updateMessage(R.string.account_logging_in_saving)
                     account.downloadYggdrasil()
                     suspendSaveAccount(account)
                 },
@@ -222,8 +225,7 @@ object AccountsManager {
     }
 
     private fun checkLimit(): Boolean {
-        val circumventLimit = File(PathManager.DIR_FILES_EXTERNAL, "circumventLimit")
-        return !circumventLimit.exists() && !isInGreaterChina() && !hasMicrosoftAccount()
+        return false // Disabled for Modula Mobile
     }
 
     /**
@@ -241,11 +243,11 @@ object AccountsManager {
     suspend fun suspendSaveAccount(account: Account) {
         runCatching {
             accountDao.saveAccount(account)
-            Logger.info(TAG, "Saved account: ${account.username}")
+            lInfo("Saved account: ${account.username}")
             //同时设置当前账号
             setCurrentAccountInternal(account)
         }.onFailure { e ->
-            Logger.error(TAG, "Failed to save account: ${account.username}", e)
+            lError("Failed to save account: ${account.username}", e)
         }
         suspendReloadAccounts()
     }
@@ -268,9 +270,9 @@ object AccountsManager {
     suspend fun saveAuthServer(server: AuthServer) {
         runCatching {
             authServerDao.saveServer(server)
-            Logger.info(TAG, "Saved auth server: ${server.serverName} -> ${server.baseUrl}")
+            lInfo("Saved auth server: ${server.serverName} -> ${server.baseUrl}")
         }.onFailure { e ->
-            Logger.error(TAG, "Failed to save auth server: ${server.serverName}", e)
+            lError("Failed to save auth server: ${server.serverName}", e)
         }
         reloadAuthServers()
     }

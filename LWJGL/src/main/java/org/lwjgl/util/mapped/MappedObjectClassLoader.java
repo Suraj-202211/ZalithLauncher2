@@ -67,8 +67,7 @@ public class MappedObjectClassLoader extends URLClassLoader {
 
 		FORKED = true;
 
-		try {
-			MappedObjectClassLoader loader = new MappedObjectClassLoader(mainClass);
+		try (MappedObjectClassLoader loader = new MappedObjectClassLoader(mainClass)) {
 			loader.loadMappedObject();
 
 			Class<?> replacedMainClass = loader.loadClass(mainClass.getName());

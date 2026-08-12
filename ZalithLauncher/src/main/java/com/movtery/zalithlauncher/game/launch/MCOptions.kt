@@ -23,15 +23,14 @@ import android.os.Build
 import android.os.FileObserver
 import com.movtery.zalithlauncher.context.copyAssetFile
 import com.movtery.zalithlauncher.game.version.installed.Version
-import com.movtery.zalithlauncher.utils.logging.Logger
+import com.movtery.zalithlauncher.utils.logging.Logger.lError
+import com.movtery.zalithlauncher.utils.logging.Logger.lWarning
 import com.movtery.zalithlauncher.utils.string.splitPreservingQuotes
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import java.io.File
 import java.util.concurrent.ConcurrentHashMap
-
-private const val TAG = "MCOptions"
 
 object MCOptions {
     private val lock = Any()
@@ -71,7 +70,7 @@ object MCOptions {
                 false
             )
         }.onFailure {
-            Logger.warning(TAG, "Failed to unpack options.txt!", it)
+            lWarning("Failed to unpack options.txt!", it)
         }
     }
 
@@ -90,7 +89,7 @@ object MCOptions {
 
             _refreshKey.update { it.not() }
         }.onFailure {
-            Logger.warning(TAG, "Failed to load options!", it)
+            lWarning("Failed to load options!", it)
         }
     }
 
@@ -139,7 +138,7 @@ object MCOptions {
             )
             tempFile.renameTo(targetFile)
         }.onFailure {
-            Logger.error(TAG, "Failed to save options.txt!", it)
+            lError("Failed to save options.txt!", it)
             tempFile.delete()
         }
     }

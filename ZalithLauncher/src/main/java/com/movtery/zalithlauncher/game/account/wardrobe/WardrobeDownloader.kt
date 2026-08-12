@@ -20,15 +20,13 @@ package com.movtery.zalithlauncher.game.account.wardrobe
 
 import com.google.gson.JsonObject
 import com.movtery.zalithlauncher.path.createOkHttpClient
-import com.movtery.zalithlauncher.path.createRequestBuilder
 import com.movtery.zalithlauncher.utils.GSON
 import com.movtery.zalithlauncher.utils.logging.Logger
 import com.movtery.zalithlauncher.utils.network.fetchStringFromUrl
 import com.movtery.zalithlauncher.utils.string.decodeBase64
+import okhttp3.Request
 import java.io.File
 import java.io.FileOutputStream
-
-private const val TAG = "WardrobeDownloader"
 
 abstract class WardrobeDownloader {
     protected val mClient = createOkHttpClient()
@@ -52,7 +50,9 @@ abstract class WardrobeDownloader {
             if (!exists()) mkdirs()
         }
 
-        val request = createRequestBuilder(url).build()
+        val request = Request.Builder()
+            .url(url)
+            .build()
 
         mClient.newCall(request).execute().use { response ->
             if (!response.isSuccessful) {
@@ -70,7 +70,7 @@ abstract class WardrobeDownloader {
                     }
                 }
             } catch (e: Exception) {
-                Logger.error(TAG, "Failed to download skin file", e)
+                Logger.lError("Failed to download skin file", e)
             }
         }
     }

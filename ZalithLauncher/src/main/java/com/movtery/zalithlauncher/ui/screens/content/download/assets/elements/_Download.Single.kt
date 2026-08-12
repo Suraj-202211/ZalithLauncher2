@@ -18,7 +18,6 @@
 
 package com.movtery.zalithlauncher.ui.screens.content.download.assets.elements
 
-import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
@@ -43,11 +42,8 @@ import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.scrollbar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.State
-import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.remember
@@ -159,16 +155,6 @@ fun DownloadSingleOperation(
 }
 
 @Composable
-private fun rememberValidVersions(): State<List<Version>> {
-    val vers by VersionsManager.versions.collectAsStateWithLifecycle()
-    return remember(vers) {
-        derivedStateOf {
-            vers.filter { it.isValid() }
-        }
-    }
-}
-
-@Composable
 private fun DownloadDialog(
     dependencyProjects: List<Pair<PlatformVersion.PlatformDependency, PlatformProject>>,
     classes: PlatformClasses,
@@ -176,7 +162,7 @@ private fun DownloadDialog(
     onInstall: (List<Version>) -> Unit,
     onDependencyClicked: (PlatformVersion.PlatformDependency, PlatformClasses) -> Unit
 ) {
-    val versions by rememberValidVersions()
+    val versions = remember { VersionsManager.versions.filter { it.isValid() } }
     val version by VersionsManager.currentVersion.collectAsStateWithLifecycle()
     val version0 = version
 
@@ -241,11 +227,7 @@ private fun DownloadDialog(
                                 LazyColumn(
                                     modifier = Modifier
                                         .fadeEdge(state = listState)
-                                        .weight(1f)
-                                        .scrollbar(
-                                            state = listState.scrollIndicatorState,
-                                            orientation = Orientation.Vertical,
-                                        ),
+                                        .weight(1f),
                                     contentPadding = PaddingValues(vertical = 8.dp),
                                     verticalArrangement = Arrangement.spacedBy(8.dp),
                                     state = listState
@@ -345,10 +327,7 @@ private fun ChoseGameVersionLayout(
 ) {
     if (versions.isNotEmpty()) {
         LazyColumn(
-            modifier = modifier.scrollbar(
-                state = listState.scrollIndicatorState,
-                orientation = Orientation.Vertical,
-            ),
+            modifier = modifier,
             contentPadding = PaddingValues(horizontal = 4.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
             state = listState

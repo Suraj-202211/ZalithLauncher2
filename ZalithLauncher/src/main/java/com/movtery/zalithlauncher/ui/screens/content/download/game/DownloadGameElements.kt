@@ -28,7 +28,6 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -58,7 +57,6 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
@@ -74,12 +72,8 @@ import com.movtery.zalithlauncher.game.addons.modloader.forgelike.forge.ForgeVer
 import com.movtery.zalithlauncher.game.addons.modloader.forgelike.neoforge.NeoForgeVersion
 import com.movtery.zalithlauncher.game.addons.modloader.modlike.ModVersion
 import com.movtery.zalithlauncher.game.addons.modloader.optifine.OptiFineVersion
-import com.movtery.zalithlauncher.setting.AllSettings
-import com.movtery.zalithlauncher.ui.AndroidStringText
-import com.movtery.zalithlauncher.ui.buildAppendedText
 import com.movtery.zalithlauncher.ui.components.influencedByBackgroundColor
 import com.movtery.zalithlauncher.ui.components.rememberMaxHeight
-import com.movtery.zalithlauncher.ui.screens.content.elements.backgroundGlass
 import com.movtery.zalithlauncher.ui.theme.cardColor
 import com.movtery.zalithlauncher.ui.theme.onCardColor
 import com.movtery.zalithlauncher.utils.animation.getAnimateTween
@@ -93,9 +87,31 @@ sealed interface AddonState {
     data object Loading : AddonState
     /**
      * 加载出现异常
-     * @param message 异常消息代理对象
+     * @param message 异常消息资源
+     * @param args 消息参数
      */
-    data class Error(val message: AndroidStringText): AddonState
+    data class Error(val message: Int, val args: Array<Any>? = null): AddonState {
+        override fun equals(other: Any?): Boolean {
+            if (this === other) return true
+            if (javaClass != other?.javaClass) return false
+
+            other as Error
+
+            if (message != other.message) return false
+            if (args != null) {
+                if (other.args == null) return false
+                if (!args.contentEquals(other.args)) return false
+            } else if (other.args != null) return false
+
+            return true
+        }
+
+        override fun hashCode(): Int {
+            var result = message
+            result = 31 * result + (args?.contentHashCode() ?: 0)
+            return result
+        }
+    }
 }
 
 /**
@@ -107,27 +123,6 @@ private fun AddonTextLayout(
     title: String,
     summary: String
 ) {
-    AddonTextLayout(
-        modifier = modifier,
-        title = title,
-        summary = {
-            Text(
-                text = summary,
-                style = MaterialTheme.typography.bodySmall
-            )
-        }
-    )
-}
-
-/**
- * 简易 Addon 文本占位
- */
-@Composable
-private fun AddonTextLayout(
-    modifier: Modifier = Modifier,
-    title: String,
-    summary: @Composable ColumnScope.() -> Unit,
-) {
     Column(
         modifier = modifier.padding(all = 8.dp),
         verticalArrangement = Arrangement.spacedBy(4.dp)
@@ -136,7 +131,10 @@ private fun AddonTextLayout(
             text = title,
             style = MaterialTheme.typography.titleSmall
         )
-        summary()
+        Text(
+            text = summary,
+            style = MaterialTheme.typography.bodySmall
+        )
     }
 }
 
@@ -171,11 +169,8 @@ fun <E> AddonListLayout(
     autoCollapse: Boolean = true,
     onValueChange: (E?) -> Unit = {},
     onReload: () -> Unit = {},
-    shape: Shape = MaterialTheme.shapes.large,
-    influencedByBackground: Boolean = true,
-    color: Color = cardColor(influencedByBackground),
-    contentColor: Color = onCardColor(),
-    blur: Int = AllSettings.backgroundBlur.state,
+    color: Color = cardColor(),
+    contentColor: Color = onCardColor()
 ) {
     var selectedItem by remember { mutableStateOf<E?>(null) }
 
@@ -202,15 +197,11 @@ fun <E> AddonListLayout(
 
     Surface(
         modifier = modifier,
-        shape = shape,
+        shape = MaterialTheme.shapes.large,
         color = color,
         contentColor = contentColor
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .backgroundGlass(blur, color, influencedByBackground)
-        ) {
+        Column(modifier = Modifier.fillMaxWidth()) {
             AddonListHeader(
                 modifier = Modifier.fillMaxWidth(),
                 state = state,
@@ -356,17 +347,16 @@ private fun <E> AddonListHeader(
                 )
             }
             is AddonState.Error -> {
+                val message = if (state.args != null) {
+                    stringResource(state.message, *state.args)
+                } else {
+                    stringResource(state.message)
+                }
+
                 AddonTextLayout(
                     modifier = Modifier.weight(1f),
                     title = title,
-                    summary = {
-                        AndroidStringText(
-                            text = buildAppendedText {
-                                append(R.string.download_game_addon_list_load_error)
-                                append(state.message)
-                            }
-                        )
-                    },
+                    summary = stringResource(R.string.download_game_addon_list_load_error, message),
                 )
                 IconButton(
                     modifier = Modifier
@@ -424,8 +414,7 @@ fun AddonWarningItem(
         color = MaterialTheme.colorScheme.errorContainer,
         enabled = true
     ),
-    contentColor: Color = MaterialTheme.colorScheme.onErrorContainer,
-    blur: Int = AllSettings.backgroundBlur.state,
+    contentColor: Color = MaterialTheme.colorScheme.onErrorContainer
 ) {
     Surface(
         modifier = modifier,
@@ -435,7 +424,6 @@ fun AddonWarningItem(
     ) {
         Row(
             modifier = Modifier
-                .backgroundGlass(blur, color)
                 .padding(horizontal = 16.dp, vertical = 4.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {

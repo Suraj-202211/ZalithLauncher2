@@ -4,10 +4,7 @@ plugins {
 
 group = "org.lwjgl.glfw"
 
-val fatJarDeps by configurations.creating {
-    isCanBeResolved = true
-    extendsFrom(configurations.runtimeClasspath.get())
-}
+configurations.getByName("default").isCanBeResolved = true
 
 tasks.jar {
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
@@ -19,7 +16,7 @@ tasks.jar {
         versionFile.writeText(System.currentTimeMillis().toString())
     }
     from({
-        fatJarDeps.map {
+        configurations.getByName("default").map {
             println(it.name)
             if (it.isDirectory) it else zipTree(it)
         }

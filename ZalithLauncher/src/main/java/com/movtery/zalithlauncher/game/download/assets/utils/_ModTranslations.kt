@@ -42,19 +42,6 @@ fun PlatformProject.getMcMod(
 }
 
 /**
- * 根据平台获取模组翻译信息
- */
-fun PlatformProject.getMcMod(
-    translations: ModTranslations
-): ModTranslations.McMod? {
-    return when (this) {
-        is ModrinthSingleProject -> translations.getModBySlugId(slug)
-        is CurseForgeProject -> translations.getModBySlugId(data.slug)
-        else -> error("Unknown project type: $this")
-    }
-}
-
-/**
  * 获取 mcmod 模组翻译标题，若当前环境非中文环境，则返回原始模组名称
  */
 fun ModTranslations.McMod?.getMcmodTitle(originTitle: String, context: Context? = null): String {
@@ -62,7 +49,7 @@ fun ModTranslations.McMod?.getMcmodTitle(originTitle: String, context: Context? 
 }
 
 /**
- * 修改自源代码：[HMCL Github](https://github.com/HMCL-dev/HMCL/blob/d295e60/HMCL/src/main/java/org/jackhuang/hmcl/game/LocalizedRemoteModRepository.java#L45-L64)
+ * 修改自源代码：[HMCL Github](https://github.com/HMCL-dev/HMCL/blob/57018be/HMCL/src/main/java/org/jackhuang/hmcl/game/LocalizedRemoteModRepository.java#L45-L63)
  * 原项目版权归原作者所有，遵循GPL v3协议
  * @return `Boolean` 是否包含中文, `String` 英文混合关键词 (不包含中文时，原样返回)
  */
@@ -70,12 +57,14 @@ suspend fun String.localizedModSearchKeywords(
     classes: PlatformClasses
 ): Pair<Boolean, Set<String>?> {
     val mcMods = this.searchMcMods(classes) ?: return false to null
-    val englishSearchFiltersSet: MutableSet<String> = LinkedHashSet(16)
+    val englishSearchFiltersSet: MutableSet<String> = HashSet(16)
 
-    for ((count, mod) in mcMods.withIndex()) {
-        val englishSearchFilter = tokenize(mod.subname.ifBlank { mod.name }).joinToString(" ")
-        if (englishSearchFilter.isNotBlank()) {
-            englishSearchFiltersSet.add(englishSearchFilter)
+    val iterable = mcMods.withIndex()
+
+    for ((count, mod) in iterable) {
+        for (englishWord in tokenize(mod.subname.ifBlank { mod.name })) {
+            if (englishSearchFiltersSet.contains(englishWord)) continue
+            englishSearchFiltersSet.add(englishWord)
         }
         if (count >= 3) break
     }

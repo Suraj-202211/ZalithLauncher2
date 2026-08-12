@@ -19,7 +19,6 @@
 package com.movtery.zalithlauncher.ui.screens.splash
 
 import androidx.compose.animation.animateContentSize
-import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -32,7 +31,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.CircularProgressIndicator
@@ -40,7 +38,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.scrollbar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -163,16 +160,9 @@ private fun UnpackTaskList(
         influencedByBackground = false,
         shape = MaterialTheme.shapes.extraLarge
     ) {
-        val scrollState = rememberLazyListState()
         LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .scrollbar(
-                    state = scrollState.scrollIndicatorState,
-                    orientation = Orientation.Vertical,
-                ),
-            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
-            state = scrollState,
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
         ) {
             items(items) { item ->
                 TaskItem(
@@ -263,3 +253,4 @@ private fun TaskItem(
         }
     }
 }
+

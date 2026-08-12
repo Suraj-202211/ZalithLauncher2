@@ -26,6 +26,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -46,7 +47,6 @@ import androidx.compose.ui.unit.dp
 import com.movtery.zalithlauncher.R
 import com.movtery.zalithlauncher.game.plugin.driver.Driver
 import com.movtery.zalithlauncher.game.plugin.driver.DriverPluginManager
-import com.movtery.zalithlauncher.game.plugin.renderer_v2.RendererV2Data
 import com.movtery.zalithlauncher.game.renderer.RendererInterface
 import com.movtery.zalithlauncher.game.renderer.Renderers
 import com.movtery.zalithlauncher.game.version.installed.GraphicsApi
@@ -59,7 +59,6 @@ import com.movtery.zalithlauncher.setting.unit.floatRange
 import com.movtery.zalithlauncher.ui.base.BaseScreen
 import com.movtery.zalithlauncher.ui.components.AnimatedColumn
 import com.movtery.zalithlauncher.ui.components.SimpleAlertDialog
-import com.movtery.zalithlauncher.ui.components.verticalScrollWithBar
 import com.movtery.zalithlauncher.ui.screens.NestedNavKey
 import com.movtery.zalithlauncher.ui.screens.NormalNavKey
 import com.movtery.zalithlauncher.ui.screens.TitledNavKey
@@ -84,10 +83,12 @@ fun RendererSettingsScreen(
         Triple(key, mainScreenKey, false),
         Triple(NormalNavKey.Settings.Renderer, settingsScreenKey, false)
     ) { isVisible ->
+        val context = LocalContext.current
+
         AnimatedColumn(
             modifier = Modifier
                 .fillMaxWidth()
-                .verticalScrollWithBar(state = rememberScrollState())
+                .verticalScroll(state = rememberScrollState())
                 .padding(all = 12.dp),
             isVisible = isVisible
         ) { scope ->
@@ -97,20 +98,11 @@ fun RendererSettingsScreen(
                         .fillMaxWidth()
                         .offset { IntOffset(x = 0, y = yOffset.roundToPx()) }
                 ) {
-                    val currentRendererId = AllSettings.renderer.state
-                    val v2PluginEnvUnits = remember(currentRendererId) {
-                        Renderers.getRenderers()
-                            .filterIsInstance<RendererV2Data>()
-                            .find { it.getUniqueIdentifier() == currentRendererId }
-                            ?.env?.getConfigurableUnits()?.takeIf { it.isNotEmpty() }
-                    }
-                    var showV2ConfigDialog by remember { mutableStateOf(false) }
-
                     ListSettingsCard(
                         modifier = Modifier.fillMaxWidth(),
                         position = CardPosition.Top,
                         unit = AllSettings.renderer,
-                        items = Renderers.getRenderers(),
+                        items = Renderers.getCompatibleRenderers(context).second,
                         title = stringResource(R.string.settings_renderer_global_renderer_title),
                         summary = stringResource(R.string.settings_renderer_global_renderer_summary),
                         getItemText = { it.getRendererName() },
@@ -119,17 +111,6 @@ fun RendererSettingsScreen(
                             RendererSummaryLayout(it)
                         },
                         trailingIcon = {
-                            //选中新一代渲染器插件且存在可配置项时，提供配置入口
-                            if (v2PluginEnvUnits != null) {
-                                IconButton(
-                                    onClick = { showV2ConfigDialog = true }
-                                ) {
-                                    Icon(
-                                        painter = painterResource(R.drawable.ic_settings_filled),
-                                        contentDescription = stringResource(R.string.settings_renderer_config_title)
-                                    )
-                                }
-                            }
                             IconButton(
                                 onClick = {
                                     eventViewModel.sendDLPlugin(
@@ -150,14 +131,6 @@ fun RendererSettingsScreen(
                             }
                         }
                     )
-
-                    //新一代渲染器插件的环境变量配置对话框
-                    if (showV2ConfigDialog && v2PluginEnvUnits != null) {
-                        RendererV2ConfigDialog(
-                            units = v2PluginEnvUnits,
-                            onDismissRequest = { showV2ConfigDialog = false }
-                        )
-                    }
 
                     ListSettingsCard(
                         modifier = Modifier.fillMaxWidth(),

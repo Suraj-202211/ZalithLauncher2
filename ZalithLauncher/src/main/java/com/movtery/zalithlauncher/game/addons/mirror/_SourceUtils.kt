@@ -18,15 +18,12 @@
 
 package com.movtery.zalithlauncher.game.addons.mirror
 
-import com.movtery.zalithlauncher.utils.logging.Logger
+import com.movtery.zalithlauncher.utils.logging.Logger.lDebug
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
 import kotlinx.io.IOException
-import kotlin.time.Duration.Companion.milliseconds
-
-private const val TAG = "SourceUtils"
 
 data class MirrorSource<T>(
     val delayMillis: Long = 0L,
@@ -44,7 +41,7 @@ suspend fun <T> runMirrorable(
     loop@ for (source in sources) {
         ensureActive()
         if (source.delayMillis > 0) {
-            delay(source.delayMillis.milliseconds)
+            delay(source.delayMillis)
         }
         ensureActive()
 
@@ -54,7 +51,7 @@ suspend fun <T> runMirrorable(
             succeed = true
             break@loop
         }.onFailure {
-            Logger.debug(TAG, "Source ${source.type.displayName} failed!", it)
+            lDebug("Source ${source.type.displayName} failed!", it)
             lastException = it
         }
     }

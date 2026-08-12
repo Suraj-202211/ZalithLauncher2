@@ -19,7 +19,6 @@
 package com.movtery.layer_controller.utils
 
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.toArgb
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.descriptors.PrimitiveKind
 import kotlinx.serialization.descriptors.PrimitiveSerialDescriptor
@@ -32,17 +31,11 @@ object ColorSerializer : KSerializer<Color> {
         PrimitiveSerialDescriptor("ColorAsLong", PrimitiveKind.LONG)
 
     override fun serialize(encoder: Encoder, value: Color) {
-        encoder.encodeLong(value.toArgb().toLong() and 0xFFFFFFFFL)
+        encoder.encodeLong(value.value.toLong())
     }
 
     override fun deserialize(decoder: Decoder): Color {
         val longValue = decoder.decodeLong()
-        val high32 = (longValue ushr 32) and 0xFFFFFFFFL
-        val argb = if (high32 != 0L) {
-            (longValue ushr 32).toInt()   // 历史格式：高 32 位 = ARGB
-        } else {
-            longValue.toInt()             // 新格式（或透明色）：低 32 位 = ARGB
-        }
-        return Color(argb)
+        return Color(longValue.toULong())
     }
 }

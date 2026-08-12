@@ -23,7 +23,9 @@ import com.movtery.zalithlauncher.game.versioninfo.models.GameManifest
 import com.movtery.zalithlauncher.game.versioninfo.models.OperatingSystem
 import com.movtery.zalithlauncher.utils.GSON
 import com.movtery.zalithlauncher.utils.file.compareSHA1
-import com.movtery.zalithlauncher.utils.logging.Logger
+import com.movtery.zalithlauncher.utils.logging.Logger.lDebug
+import com.movtery.zalithlauncher.utils.logging.Logger.lError
+import com.movtery.zalithlauncher.utils.logging.Logger.lWarning
 import com.movtery.zalithlauncher.utils.network.fetchStringFromUrls
 import com.movtery.zalithlauncher.utils.network.withRetry
 import kotlinx.coroutines.Dispatchers
@@ -31,15 +33,13 @@ import kotlinx.coroutines.withContext
 import org.apache.commons.io.FileUtils
 import java.io.File
 
-private const val TAG = "Minecraft.DownloadUtils"
-
 private const val UTILS_LOG_TAG = "Minecraft.DownloaderUtils"
 
 fun <T> String.parseTo(classOfT: Class<T>): T {
     return runCatching {
         GSON.fromJson(this, classOfT)
     }.getOrElse { e ->
-        Logger.error(TAG, "Failed to parse JSON", e)
+        lError("Failed to parse JSON", e)
         throw e
     }
 }
@@ -59,7 +59,7 @@ suspend fun <T> downloadAndParseJson(
                 )
             }
             if (string.isBlank()) {
-                Logger.error(TAG, "Downloaded string is empty, aborting.")
+                lError("Downloaded string is empty, aborting.")
                 throw IllegalStateException("Downloaded string is empty.")
             }
             targetFile.writeText(string)
@@ -73,7 +73,7 @@ suspend fun <T> downloadAndParseJson(
             return runCatching {
                 targetFile.readText().parseTo(classOfT)
             }.getOrElse {
-                Logger.warning(TAG, "Failed to parse existing JSON, re-downloading...")
+                lWarning("Failed to parse existing JSON, re-downloading...")
                 downloadAndParse()
             }
         } else {
@@ -89,7 +89,7 @@ fun artifactToPath(library: GameManifest.Library): String? {
 
     val libInfos = library.name.split(":")
     if (libInfos.size < 3) {
-        Logger.error(TAG, "Invalid library name format: ${library.name}")
+        lError("Invalid library name format: ${library.name}")
         return null
     }
 
@@ -118,7 +118,7 @@ fun processLibraries(libraries: () -> List<GameManifest.Library>) {
         val versionParts = versionSegment.split(".")
 
         getLibraryReplacement(library.name, versionParts)?.let { replacement ->
-            Logger.debug(TAG, "Library ${library.name} has been changed to version ${replacement.newName.split(":").last()}")
+            lDebug("Library ${library.name} has been changed to version ${replacement.newName.split(":").last()}")
             updateLibrary(library, replacement)
         }
     }

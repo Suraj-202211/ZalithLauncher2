@@ -35,14 +35,12 @@ import com.movtery.zalithlauncher.game.launch.JvmLauncher
 import com.movtery.zalithlauncher.ui.control.input.TextInputMode
 import com.movtery.zalithlauncher.ui.screens.game.JVMScreen
 import com.movtery.zalithlauncher.ui.screens.game.elements.LogState
-import com.movtery.zalithlauncher.utils.logging.Logger
+import com.movtery.zalithlauncher.utils.logging.Logger.lError
 import com.movtery.zalithlauncher.viewmodel.ErrorViewModel
 import com.movtery.zalithlauncher.viewmodel.EventViewModel
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-
-private const val TAG = "JVMHandler"
 
 class JVMHandler(
     jvmLauncher: JvmLauncher,
@@ -97,7 +95,7 @@ class JVMHandler(
                     canvas?.let { surface.unlockCanvasAndPost(it) }
                 }
             } catch (throwable: Throwable) {
-                Logger.error(TAG, "An exception occurred while rendering the AWT frame.", throwable)
+                lError("An exception occurred while rendering the AWT frame.", throwable)
             } finally {
                 rgbArrayBitmap.recycle()
                 surface.release()

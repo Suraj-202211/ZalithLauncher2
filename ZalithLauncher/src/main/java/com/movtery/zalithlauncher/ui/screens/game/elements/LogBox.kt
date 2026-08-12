@@ -67,7 +67,6 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import java.util.Collections
-import kotlin.time.Duration.Companion.milliseconds
 
 @Composable
 fun LogBox(
@@ -107,7 +106,7 @@ fun LogBox(
                 while (isActive) {
                     try {
                         ensureActive()
-                        delay(config.BUFFER_FLUSH_INTERVAL.milliseconds)
+                        delay(config.BUFFER_FLUSH_INTERVAL)
                         val pending = mutableListOf<AnnotatedString>()
 
                         mutex.withLock {
@@ -285,3 +284,4 @@ private fun LogBoxIconButton(
         content = icon
     )
 }
+

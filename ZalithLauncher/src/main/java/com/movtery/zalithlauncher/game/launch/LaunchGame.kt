@@ -38,24 +38,21 @@ import com.movtery.zalithlauncher.game.version.installed.Version
 import com.movtery.zalithlauncher.game.version.installed.VersionFolders
 import com.movtery.zalithlauncher.game.version.mod.AllModReader
 import com.movtery.zalithlauncher.setting.AllSettings
-import com.movtery.zalithlauncher.ui.AndroidStringText
 import com.movtery.zalithlauncher.ui.activities.runGame
-import com.movtery.zalithlauncher.ui.androidText
 import com.movtery.zalithlauncher.utils.GSON
 import com.movtery.zalithlauncher.utils.file.readText
-import com.movtery.zalithlauncher.utils.logging.Logger
+import com.movtery.zalithlauncher.utils.logging.Logger.lError
+import com.movtery.zalithlauncher.utils.logging.Logger.lWarning
 import com.movtery.zalithlauncher.utils.network.isNetworkAvailable
-import com.movtery.zalithlauncher.utils.network.toLocal
 import com.movtery.zalithlauncher.viewmodel.ErrorViewModel
 import io.ktor.client.plugins.HttpRequestTimeoutException
+import io.ktor.http.HttpStatusCode
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.net.ConnectException
 import java.net.UnknownHostException
 import java.nio.channels.UnresolvedAddressException
 import java.util.zip.ZipFile
-
-private const val TAG = "LaunchGame"
 
 object LaunchGame {
     var isLaunching: Boolean = false
@@ -72,6 +69,8 @@ object LaunchGame {
         val account = AccountsManager.currentAccountFlow.value ?: return
         isLaunching = true
 
+        com.modulamobile.discord.DiscordPresenceManager.instance.updateState(com.modulamobile.discord.AppState.LAUNCHING)
+
         //检查是否联网，根据这个条件决定是否登录账号
         //以及，没有联网时，让微软账号、外置账号作为离线账号登录
         val hasNetwork = isNetworkAvailable(context)
@@ -79,7 +78,6 @@ object LaunchGame {
         val downloadTask = createDownloadTask(
             context = context,
             version = version,
-            account = account,
             exitActivity = exitActivity,
             waitForVulkanChecker = waitForVulkanChecker,
             submitError = submitError
@@ -111,7 +109,6 @@ object LaunchGame {
     private fun createDownloadTask(
         context: Context,
         version: Version,
-        account: Account,
         exitActivity: () -> Unit,
         waitForVulkanChecker: suspend () -> Unit,
         submitError: (ErrorViewModel.ThrowableMessage) -> Unit
@@ -123,22 +120,23 @@ object LaunchGame {
             verifyIntegrity = !version.skipGameIntegrityCheck(),
             mode = DownloadMode.VERIFY_AND_REPAIR,
             onCompletion = { task ->
-                task.updateProgress(-1f)
-                task.updateMessage(null)
+                task.updateProgress(-1f, null)
                 checkEnableTouchProxy(version)
-                task.updateMessage(androidText(R.string.game_vulkan_check_title))
+                task.updateMessage(R.string.game_vulkan_check_title)
                 checkVulkanCapabilities(version, waitForVulkanChecker)
 
-                runGame(context, version, account)
+                com.modulamobile.discord.DiscordPresenceManager.instance.updateState(com.modulamobile.discord.AppState.IN_GAME)
+                runGame(context, version)
                 exitActivity()
             },
             onError = { message ->
                 submitError(
                     ErrorViewModel.ThrowableMessage(
-                        title = androidText(R.string.minecraft_download_failed),
-                        message = androidText(message)
+                        title = context.getString(R.string.minecraft_download_failed),
+                        message = message
                     )
                 )
+                com.modulamobile.discord.DiscordPresenceManager.instance.updateState(com.modulamobile.discord.AppState.IN_MENUS)
             }
         ).getDownloadTask()
     }
@@ -186,7 +184,7 @@ object LaunchGame {
                     }
                 } ?: false
             }.onFailure { e ->
-                Logger.warning(TAG, "Unable to determine the data version of this client Jar, possibly due to an outdated version.", e)
+                lWarning("Unable to determine the data version of this client Jar, possibly due to an outdated version.", e)
             }.getOrDefault(false)
 
             if (hasVulkan) {
@@ -213,26 +211,33 @@ object LaunchGame {
                     AccountsManager.suspendSaveAccount(acc)
                 },
                 onFailed = { error ->
-                    val message: AndroidStringText = when (error) {
-                        is NotPurchasedMinecraftException -> toLocal()
-                        is MinecraftProfileException -> error.toLocal()
-                        is XboxLoginException -> error.toLocal()
-                        is ResponseException -> androidText(error.responseMessage)
-                        is HttpRequestTimeoutException -> androidText(R.string.error_timeout)
-                        is UnknownHostException, is UnresolvedAddressException -> androidText(R.string.error_network_unreachable)
-                        is ConnectException -> androidText(R.string.error_connection_failed)
-                        is io.ktor.client.plugins.ResponseException -> error.toLocal()
+                    val message: String = when (error) {
+                        is NotPurchasedMinecraftException -> toLocal(context)
+                        is MinecraftProfileException -> error.toLocal(context)
+                        is XboxLoginException -> error.toLocal(context)
+                        is ResponseException -> error.responseMessage
+                        is HttpRequestTimeoutException -> context.getString(R.string.error_timeout)
+                        is UnknownHostException, is UnresolvedAddressException -> context.getString(R.string.error_network_unreachable)
+                        is ConnectException -> context.getString(R.string.error_connection_failed)
+                        is io.ktor.client.plugins.ResponseException -> {
+                            val statusCode = error.response.status
+                            val res = when (statusCode) {
+                                HttpStatusCode.Unauthorized -> R.string.error_unauthorized
+                                HttpStatusCode.NotFound -> R.string.error_notfound
+                                else -> R.string.error_client_error
+                            }
+                            context.getString(res, statusCode)
+                        }
                         else -> {
-                            Logger.error(TAG, "An unknown exception was caught!", error)
-                            androidText(
-                                error.localizedMessage ?: error.message ?: error::class.qualifiedName ?: "Unknown error"
-                            )
+                            lError("An unknown exception was caught!", error)
+                            val errorMessage = error.localizedMessage ?: error.message ?: error::class.qualifiedName ?: "Unknown error"
+                            context.getString(R.string.error_unknown, errorMessage)
                         }
                     }
 
                     submitError(
                         ErrorViewModel.ThrowableMessage(
-                            title = androidText(R.string.account_logging_in_failed),
+                            title = context.getString(R.string.account_logging_in_failed),
                             message = message
                         )
                     )

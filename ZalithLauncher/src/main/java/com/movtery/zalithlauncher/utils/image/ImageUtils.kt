@@ -25,10 +25,8 @@ import android.graphics.drawable.BitmapDrawable
 import android.graphics.drawable.Drawable
 import androidx.core.graphics.createBitmap
 import androidx.core.graphics.get
-import com.movtery.zalithlauncher.utils.logging.Logger
+import com.movtery.zalithlauncher.utils.logging.Logger.lWarning
 import java.io.File
-
-private const val TAG = "ImageUtils"
 
 /**
  * 将 [Drawable] 转换为 [Bitmap]
@@ -106,7 +104,7 @@ fun File.isImageFile(): Boolean {
         BitmapFactory.decodeFile(this.absolutePath, options)
         options.outWidth > 0 && options.outHeight > 0
     } catch (e: Exception) {
-        Logger.warning(TAG,
+        lWarning(
             "An exception occurred while trying to determine if ${this.absolutePath} is an image.",
             e
         )

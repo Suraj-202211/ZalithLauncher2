@@ -19,10 +19,10 @@
 package com.movtery.zalithlauncher.setting
 
 import android.content.Context
+import com.movtery.zalithlauncher.game.launch.parseJavaArguments
 import com.movtery.zalithlauncher.utils.device.Architecture
 import com.movtery.zalithlauncher.utils.platform.bytesToMB
 import com.movtery.zalithlauncher.utils.platform.getTotalMemory
-import com.movtery.zalithlauncher.utils.string.splitPreservingQuotes
 
 private const val LWJGL_LIB_NAME_ARG = "-Dorg.lwjgl.opengl.libname="
 
@@ -37,7 +37,7 @@ fun loadAllSettings(context: Context, reloadAll: Boolean = false) {
         AllSettings.ramAllocation.save(ram)
     }
     val jvmArgs = AllSettings.jvmArgs.getValue()
-    jvmArgs.splitPreservingQuotes().find { it.startsWith(LWJGL_LIB_NAME_ARG) }?.let { arg ->
+    parseJavaArguments(jvmArgs).find { it.startsWith(LWJGL_LIB_NAME_ARG) }?.let { arg ->
         AllSettings.jvmArgs.save(jvmArgs.replace(arg, ""))
     }
 }
@@ -57,12 +57,11 @@ fun findBestRAMAllocation(context: Context): Int {
 
     val deviceRam = getTotalMemory(context).bytesToMB()
     return when {
-        deviceRam < 1024 -> 296
-        deviceRam < 1536 -> 448
-        deviceRam < 2048 -> 656
-        deviceRam < 3064 -> 936
-        deviceRam < 4096 -> 1144
+        deviceRam <= 3072 -> 768
         deviceRam < 6144 -> 1536
-        else -> 2048 //Default RAM allocation for 64 bits
+        deviceRam < 8192 -> 2048
+        deviceRam < 12288 -> 3072
+        deviceRam < 16384 -> 4096
+        else -> 6144
     }
 }

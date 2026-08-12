@@ -18,20 +18,10 @@
 
 package com.movtery.zalithlauncher.game.account.wardrobe
 
-import android.os.Parcelable
-import androidx.annotation.Keep
-import kotlinx.parcelize.Parcelize
-
 /**
  * 皮肤模型枚举
  */
-@Keep
-@Parcelize
-enum class SkinModelType(
-    val string: String,
-    val targetParity: Int,
-    val modelType: String
-): Parcelable {
+enum class SkinModelType(val string: String, val targetParity: Int, val modelType: String) {
     /** 未设定 */
     NONE("none", -1, ""),
     /** 粗臂类型 */

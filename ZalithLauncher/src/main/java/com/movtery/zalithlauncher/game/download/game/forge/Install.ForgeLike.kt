@@ -33,14 +33,13 @@ import com.movtery.zalithlauncher.game.download.jvm_server.runJvmRetryRuntimes
 import com.movtery.zalithlauncher.game.download.jvm_server.stopAllNonMainProcesses
 import com.movtery.zalithlauncher.game.version.download.BaseMinecraftDownloader
 import com.movtery.zalithlauncher.notification.NoticeProgress
-import com.movtery.zalithlauncher.ui.androidText
 import com.movtery.zalithlauncher.utils.GSON
 import com.movtery.zalithlauncher.utils.file.ensureDirectory
 import com.movtery.zalithlauncher.utils.file.extractEntryToFile
 import com.movtery.zalithlauncher.utils.file.extractFromZip
 import com.movtery.zalithlauncher.utils.file.readText
 import com.movtery.zalithlauncher.utils.json.parseToJson
-import com.movtery.zalithlauncher.utils.logging.Logger
+import com.movtery.zalithlauncher.utils.logging.Logger.lInfo
 import com.movtery.zalithlauncher.utils.string.isBiggerOrEqualTo
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -55,8 +54,6 @@ import java.util.jar.Attributes
 import java.util.jar.JarFile
 import java.util.zip.ZipFile
 import kotlin.io.path.name
-
-private const val TAG = "Install.ForgeLike"
 
 const val FORGE_LIKE_INSTALL_ID = "Install.ForgeLike"
 
@@ -131,14 +128,13 @@ private suspend fun installNewForgeHMCLWay(
         //解压版本Json
         zip.extractEntryToFile("version.json", tempVersionJson)
 
-        task.updateProgress(0.2f)
-        task.updateMessage(androidText(R.string.download_game_install_forgelike_preparing_mapping_file, loaderName))
+        task.updateProgress(0.2f, R.string.download_game_install_forgelike_preparing_mapping_file, loaderName)
         installProfile["data"].asJsonObject?.let { data ->
             for ((key, value) in data.entrySet()) {
                 if (value.isJsonObject) {
                     val client = value.asJsonObject["client"]
                     if (client != null && client.isJsonPrimitive) {
-                        Logger.info(TAG, "Attempting to recognize mapping: ${client.asString}")
+                        lInfo("Attempting to recognize mapping: ${client.asString}")
                         parseLiteral(
                             baseDir = tempMinecraftDir,
                             literal = client.asString,
@@ -149,12 +145,12 @@ private suspend fun installNewForgeHMCLWay(
                                     .removePrefix("/")
                                     .replace("\\", "/")
                                 zip.extractEntryToFile(item, dest.toFile())
-                                Logger.info(TAG, "Extracting item $item to directory $dest")
+                                lInfo("Extracting item $item to directory $dest")
                                 dest.toString()
                             }
                         )?.let {
                             vars[key] = it
-                            Logger.info(TAG, "Recognized as mapping $key - $it")
+                            lInfo("Recognized as mapping $key - $it")
                         }
                     }
                 }
@@ -164,10 +160,7 @@ private suspend fun installNewForgeHMCLWay(
         installProfile
     }
 
-    task.updateProgress(1f)
-    task.updateMessage(androidText(
-        R.string.download_game_install_forgelike_preparing_mapping_file, loaderName
-    ))
+    task.updateProgress(1f, R.string.download_game_install_forgelike_preparing_mapping_file, loaderName)
 
     vars["SIDE"] = "client"
     vars["MINECRAFT_JAR"] = tempVanillaJar.absolutePath
@@ -214,7 +207,7 @@ private suspend fun installOldForge(
         task.updateProgress(0.5f)
 
         if (!installProfile.has("install")) {
-            Logger.info(TAG, "Starting the Forge installation, Legacy method A")
+            lInfo("Starting the Forge installation, Legacy method A")
 
             //建立 Json 文件
             val jsonVersion = zip.readText(installProfile["json"].asString.trimStart('/')).parseToJson()
@@ -227,7 +220,7 @@ private suspend fun installOldForge(
 
             null
         } else {
-            Logger.info(TAG, "Starting the Forge installation, Legacy method B")
+            lInfo("Starting the Forge installation, Legacy method B")
             val artifact = installProfile["install"].asJsonObject["path"].asString
             val jarPath = getLibraryPath(artifact, baseFolder = tempMinecraftDir.absolutePath)
 
@@ -300,7 +293,7 @@ private suspend fun runProcessors(
                 throw IllegalArgumentException("Invalid forge installation configuration")
             }
         }.also {
-            Logger.info(TAG, "Parsed output mappings for ${processor.javaClass.simpleName}: ${it.entries.joinToString("\n") { entry -> "${entry.key} = ${entry.value}" }}")
+            lInfo("Parsed output mappings for ${processor.javaClass.simpleName}: ${it.entries.joinToString("\n") { entry -> "${entry.key} = ${entry.value}" }}")
         }
 
         val anyMissing = outputs.any { (key, expectedHash) ->
@@ -312,7 +305,7 @@ private suspend fun runProcessors(
             }
             if (actualHash != expectedHash) {
                 Files.delete(artifact)
-                Logger.info(TAG, "Invalid artifact removed: $artifact")
+                lInfo("Invalid artifact removed: $artifact")
                 true
             } else false
         }
@@ -367,12 +360,9 @@ private suspend fun runProcessors(
         ) {
             val jarPath = processor.getJar().toPath()
 
-            task.updateProgress(progress)
-            task.updateMessage(androidText(
-                R.string.download_game_install_base_installing, taskStr
-            ))
+            task.updateProgress(progress, R.string.download_game_install_base_installing, taskStr)
 
-            Logger.info(TAG, "Start to run $jarPath with args: $jvmArgs")
+            lInfo("Start to run $jarPath with args: $jvmArgs")
         }
 
         for ((artifact, value) in outputs) {

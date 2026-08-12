@@ -52,6 +52,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextAlign
@@ -73,11 +74,10 @@ import com.movtery.zalithlauncher.game.download.assets.utils.ModTranslations
 import com.movtery.zalithlauncher.game.download.assets.utils.getMcmodTitle
 import com.movtery.zalithlauncher.game.download.assets.utils.getTranslations
 import com.movtery.zalithlauncher.game.versioninfo.filterRelease
-import com.movtery.zalithlauncher.ui.AndroidStringText
 import com.movtery.zalithlauncher.ui.base.BaseScreen
-import com.movtery.zalithlauncher.ui.buildAppendedText
 import com.movtery.zalithlauncher.ui.components.BackgroundCard
 import com.movtery.zalithlauncher.ui.components.CheckChip
+import com.movtery.zalithlauncher.ui.components.IconTextButton
 import com.movtery.zalithlauncher.ui.components.ScalingLabel
 import com.movtery.zalithlauncher.ui.components.ShimmerBox
 import com.movtery.zalithlauncher.ui.components.SimpleTextInputField
@@ -88,13 +88,15 @@ import com.movtery.zalithlauncher.ui.screens.content.download.assets.elements.As
 import com.movtery.zalithlauncher.ui.screens.content.download.assets.elements.AssetsVersionItemLayout
 import com.movtery.zalithlauncher.ui.screens.content.download.assets.elements.DownloadAssetsState
 import com.movtery.zalithlauncher.ui.screens.content.download.assets.elements.DownloadAssetsVersionLoading
-import com.movtery.zalithlauncher.ui.screens.content.download.assets.elements.ProjectUrlsContent
 import com.movtery.zalithlauncher.ui.screens.content.download.assets.elements.ScreenshotItemLayout
 import com.movtery.zalithlauncher.ui.screens.content.download.assets.elements.VersionInfoMap
 import com.movtery.zalithlauncher.ui.screens.content.download.assets.elements.initAll
 import com.movtery.zalithlauncher.ui.screens.content.download.assets.elements.mapWithVersions
+import com.movtery.zalithlauncher.ui.theme.cardColor
 import com.movtery.zalithlauncher.ui.theme.onCardColor
 import com.movtery.zalithlauncher.utils.animation.swapAnimateDpAsState
+import com.movtery.zalithlauncher.utils.isChinese
+import com.movtery.zalithlauncher.utils.string.isNotEmptyOrBlank
 import com.movtery.zalithlauncher.viewmodel.EventViewModel
 import io.ktor.client.plugins.ClientRequestException
 import kotlinx.coroutines.async
@@ -104,7 +106,6 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
-import kotlin.time.Duration.Companion.milliseconds
 
 private class DownloadScreenViewModel(
     private val platform: Platform,
@@ -296,16 +297,13 @@ fun DownloadAssetsScreen(
     currentKey: TitledNavKey?,
     key: NormalNavKey.DownloadAssets,
     eventViewModel: EventViewModel,
-    onItemClicked: (PlatformClasses, PlatformVersion, iconUrl: String?, deps: List<Pair<PlatformVersion.PlatformDependency, PlatformProject>>) -> Unit,
-    nestedNavKeyClass: Class<out TitledNavKey>? = null,
-    versionsUIWeight: Float = 6.5f,
-    projectUIWeight: Float = 3.5f,
+    onItemClicked: (PlatformClasses, PlatformVersion, iconUrl: String?, deps: List<Pair<PlatformVersion.PlatformDependency, PlatformProject>>) -> Unit
 ) {
     val viewModel: DownloadScreenViewModel = rememberDownloadAssetsViewModel(key)
 
     BaseScreen(
         levels1 = listOf(
-            Pair(nestedNavKeyClass ?: NestedNavKey.Download::class.java, mainScreenKey)
+            Pair(NestedNavKey.Download::class.java, mainScreenKey)
         ),
         Triple(parentScreenKey, parentCurrentKey, false),
         Triple(key, currentKey, false),
@@ -316,7 +314,7 @@ fun DownloadAssetsScreen(
             val yOffset by swapAnimateDpAsState(targetValue = (-40).dp, swapIn = isVisible)
             Versions(
                 modifier = Modifier
-                    .weight(versionsUIWeight)
+                    .weight(6.5f)
                     .fillMaxHeight()
                     .offset { IntOffset(x = 0, y = yOffset.roundToPx()) },
                 viewModel = viewModel,
@@ -336,7 +334,7 @@ fun DownloadAssetsScreen(
             )
             ProjectInfo(
                 modifier = Modifier
-                    .weight(projectUIWeight)
+                    .weight(3.5f)
                     .fillMaxHeight()
                     .padding(vertical = 12.dp)
                     .padding(end = 12.dp)
@@ -435,6 +433,8 @@ private fun Versions(
                         modifier = Modifier.weight(1f),
                         value = viewModel.searchMCVersion,
                         onValueChange = { viewModel.filterWith(searchMCVersion = it) },
+                        color = cardColor(),
+                        contentColor = onCardColor(),
                         singleLine = true,
                         textStyle = TextStyle(color = onCardColor()).copy(fontSize = 12.sp),
                         hint = {
@@ -456,7 +456,7 @@ private fun Versions(
                 val scrollState = rememberLazyListState()
 
                 LaunchedEffect(Unit) {
-                    delay(100L.milliseconds)
+                    delay(100)
                     runCatching {
                         val result = versions.result
                         val index = versions.result.indexOfFirst { it.isAdapt }
@@ -488,16 +488,15 @@ private fun Versions(
         }
         is DownloadAssetsState.Error -> {
             Box(modifier.padding(all = 12.dp)) {
+                val message = if (versions.args != null) {
+                    stringResource(versions.message, *versions.args)
+                } else {
+                    stringResource(versions.message)
+                }
+
                 ScalingLabel(
                     modifier = Modifier.align(Alignment.Center),
-                    text = {
-                        AndroidStringText(
-                            text = buildAppendedText {
-                                append(R.string.download_assets_failed_to_get_versions)
-                                append(versions.message)
-                            }
-                        )
-                    },
+                    text = stringResource(R.string.download_assets_failed_to_get_versions, message),
                     onClick = onReload
                 )
             }
@@ -524,7 +523,6 @@ private fun ProjectInfo(
         when (val result = projectResult) {
             is DownloadAssetsState.Getting -> {
                 LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
                     contentPadding = PaddingValues(all = 12.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
@@ -576,7 +574,6 @@ private fun ProjectInfo(
                 val screenshots = remember { project.platformScreenshots() }
 
                 LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
                     contentPadding = PaddingValues(all = 12.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
@@ -627,13 +624,55 @@ private fun ProjectInfo(
                                     style = MaterialTheme.typography.titleMedium
                                 )
 
-                                ProjectUrlsContent(
-                                    platform = platform,
-                                    urls = urls,
-                                    mcmod = mcmod,
-                                    mod = mod,
-                                    openLink = openLink,
-                                )
+                                urls.projectUrl?.takeIf { it.isNotEmptyOrBlank() }?.let { url ->
+                                    IconTextButton(
+                                        onClick = { openLink(url) },
+                                        iconSize = 18.dp,
+                                        painter = when (platform) {
+                                            Platform.CURSEFORGE -> painterResource(R.drawable.img_platform_curseforge)
+                                            Platform.MODRINTH -> painterResource(R.drawable.img_platform_modrinth)
+                                        },
+                                        text = stringResource(R.string.download_assets_project_link)
+                                    )
+                                }
+                                urls.sourceUrl?.takeIf { it.isNotEmptyOrBlank() }?.let { url ->
+                                    IconTextButton(
+                                        onClick = { openLink(url) },
+                                        iconSize = 18.dp,
+                                        painter = painterResource(R.drawable.ic_code),
+                                        text = stringResource(R.string.download_assets_source_link)
+                                    )
+                                }
+                                urls.issuesUrl?.takeIf { it.isNotEmptyOrBlank() }?.let { url ->
+                                    IconTextButton(
+                                        onClick = { openLink(url) },
+                                        iconSize = 18.dp,
+                                        painter = painterResource(R.drawable.ic_chat_info),
+                                        text = stringResource(R.string.download_assets_issues_link)
+                                    )
+                                }
+                                urls.wikiUrl?.takeIf { it.isNotEmptyOrBlank() }?.let { url ->
+                                    IconTextButton(
+                                        onClick = { openLink(url) },
+                                        iconSize = 18.dp,
+                                        painter = painterResource(R.drawable.ic_import_contacts_outlined),
+                                        text = stringResource(R.string.download_assets_wiki_link)
+                                    )
+                                }
+                                mcmod?.takeIf {
+                                    isChinese(context)
+                                }?.let {
+                                    mod.getMcmodUrl(it)
+                                }?.takeIf {
+                                    it.isNotEmptyOrBlank()
+                                }?.let { url ->
+                                    IconTextButton(
+                                        onClick = { openLink(url) },
+                                        iconSize = 18.dp,
+                                        painter = painterResource(R.drawable.ic_link),
+                                        text = "MC 百科" //品牌名不需要翻译，硬编码
+                                    )
+                                }
                             }
                         }
                     }
@@ -648,21 +687,18 @@ private fun ProjectInfo(
                 }
             }
             is DownloadAssetsState.Error -> {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(all = 12.dp)
-                ) {
+                Box(Modifier
+                    .fillMaxSize()
+                    .padding(all = 12.dp)) {
+                    val message = if (result.args != null) {
+                        stringResource(result.message, *result.args)
+                    } else {
+                        stringResource(result.message)
+                    }
+
                     ScalingLabel(
                         modifier = Modifier.align(Alignment.Center),
-                        text = {
-                            AndroidStringText(
-                                text = buildAppendedText {
-                                    append(R.string.download_assets_failed_to_get_project)
-                                    append(result.message)
-                                }
-                            )
-                        },
+                        text = stringResource(R.string.download_assets_failed_to_get_project, message),
                         onClick = onReload
                     )
                 }

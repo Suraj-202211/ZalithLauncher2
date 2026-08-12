@@ -19,7 +19,8 @@
 package com.movtery.zalithlauncher.coroutine
 
 import com.movtery.zalithlauncher.coroutine.TaskFlowExecutor.TaskPhase
-import com.movtery.zalithlauncher.utils.logging.Logger
+import com.movtery.zalithlauncher.utils.logging.Logger.lDebug
+import com.movtery.zalithlauncher.utils.logging.Logger.lWarning
 import com.movtery.zalithlauncher.utils.network.isInterruptedIOException
 import com.movtery.zalithlauncher.utils.string.getMessageOrToString
 import kotlinx.coroutines.CancellationException
@@ -34,8 +35,6 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-
-private const val TAG = "TaskFlowExecutor"
 
 /**
  * 动态任务流执行器，按照阶段顺序执行任务流
@@ -107,7 +106,7 @@ class TaskFlowExecutor(
                 //执行阶段内的所有任务
                 for (task in phase.tasks) {
                     ensureActive()
-                    task.task.updateStage(TaskStage.RUNNING)
+                    task.task.taskState = TaskState.RUNNING
 
                     //为每个任务创建独立的Job，以便可以立即取消
                     //使用SupervisorJob确保任务内部的子协程异常不会影响其他任务
@@ -134,7 +133,7 @@ class TaskFlowExecutor(
                                 }
                             }
                         }
-                        task.task.updateStage(TaskStage.COMPLETED)
+                        task.task.taskState = TaskState.COMPLETED
                     } finally {
                         //确保taskJob被取消和清理，无论任务成功还是失败
                         taskJob.cancel()
@@ -146,10 +145,10 @@ class TaskFlowExecutor(
                 phase.onComplete?.invoke()
             } catch (th: Throwable) {
                 if (th is CancellationException || th.isInterruptedIOException()) {
-                    Logger.debug(TAG, "The current task flow has been cancelled. ${th.getMessageOrToString()}")
+                    lDebug("The current task flow has been cancelled. ${th.getMessageOrToString()}")
                     onCancel()
                 } else {
-                    Logger.warning(TAG, "An exception occurred while executing the task flow.", th)
+                    lWarning("An exception occurred while executing the task flow.", th)
                     onError(th)
                 }
                 return@withContext

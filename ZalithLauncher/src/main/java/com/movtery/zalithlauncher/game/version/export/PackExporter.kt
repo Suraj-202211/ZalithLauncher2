@@ -32,17 +32,15 @@ import com.movtery.zalithlauncher.game.version.export.platform.ModrinthPackExpor
 import com.movtery.zalithlauncher.game.version.export.platform.MultiMCPackExporter
 import com.movtery.zalithlauncher.game.version.installed.Version
 import com.movtery.zalithlauncher.path.PathManager
-import com.movtery.zalithlauncher.ui.androidText
 import com.movtery.zalithlauncher.utils.file.zipDirectory
-import com.movtery.zalithlauncher.utils.logging.Logger
+import com.movtery.zalithlauncher.utils.logging.Logger.lDebug
+import com.movtery.zalithlauncher.utils.logging.Logger.lInfo
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.withContext
 import org.apache.commons.io.FileUtils
 import java.io.File
-
-private const val TAG = "PackExporter"
 
 /**
  * 整合包导出器
@@ -106,7 +104,7 @@ class PackExporter(
                 //清除上一次导出的缓存
                 addTask(
                     id = "ExportModpack.Cleanup",
-                    title = androidText(R.string.download_install_clear_temp),
+                    title = context.getString(R.string.download_install_clear_temp),
                     icon = R.drawable.ic_auto_delete_outlined
                 ) {
                     clearTempModPackDir()
@@ -124,7 +122,7 @@ class PackExporter(
 
                 addTask(
                     id = "ExportModpack.Pack",
-                    title = androidText(R.string.versions_export_task_generate_pack),
+                    title = context.getString(R.string.versions_export_task_generate_pack),
                     icon = R.drawable.ic_build_outlined
                 ) {
                     zipDirectory(
@@ -142,7 +140,7 @@ class PackExporter(
 
                 addTask(
                     id = "ExportModpack.Cleanup_Finished",
-                    title = androidText(R.string.download_install_clear_temp),
+                    title = context.getString(R.string.download_install_clear_temp),
                     icon = R.drawable.ic_auto_delete_outlined
                 ) {
                     clearTempModPackDir()
@@ -157,7 +155,7 @@ class PackExporter(
     private suspend fun clearTempModPackDir() = withContext(Dispatchers.IO) {
         PathManager.DIR_CACHE_MODPACK_EXPORTER.takeIf { it.exists() }?.let { folder ->
             FileUtils.deleteQuietly(folder)
-            Logger.info(TAG, "Temporary modpack export directory cleared.")
+            lInfo("Temporary modpack export directory cleared.")
         }
     }
 
@@ -170,7 +168,7 @@ class PackExporter(
 
     private fun File.createDirAndLog(): File {
         this.mkdirs()
-        Logger.debug(TAG, "Created directory: $this")
+        lDebug("Created directory: $this")
         return this
     }
 }

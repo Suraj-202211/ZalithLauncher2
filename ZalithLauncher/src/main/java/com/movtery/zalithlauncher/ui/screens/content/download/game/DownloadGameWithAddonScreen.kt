@@ -31,6 +31,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.HorizontalDivider
@@ -39,6 +40,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
@@ -55,7 +57,6 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.movtery.zalithlauncher.R
@@ -73,12 +74,12 @@ import com.movtery.zalithlauncher.game.addons.modloader.forgelike.neoforge.NeoFo
 import com.movtery.zalithlauncher.game.addons.modloader.optifine.OptiFineVersion
 import com.movtery.zalithlauncher.game.addons.modloader.optifine.OptiFineVersions
 import com.movtery.zalithlauncher.game.download.game.GameDownloadInfo
+import com.movtery.zalithlauncher.game.version.installed.Version
 import com.movtery.zalithlauncher.game.version.installed.VersionsManager
 import com.movtery.zalithlauncher.game.version.installed.VersionsManager.isVersionExists
 import com.movtery.zalithlauncher.ui.base.BaseScreen
 import com.movtery.zalithlauncher.ui.components.AnimatedColumn
 import com.movtery.zalithlauncher.ui.components.SimpleTextInputField
-import com.movtery.zalithlauncher.ui.components.verticalScrollWithBar
 import com.movtery.zalithlauncher.ui.screens.NestedNavKey
 import com.movtery.zalithlauncher.ui.screens.NormalNavKey
 import com.movtery.zalithlauncher.ui.screens.TitledNavKey
@@ -303,7 +304,7 @@ fun DownloadGameWithAddonScreen(
             AnimatedColumn(
                 modifier = Modifier
                     .padding(horizontal = 12.dp)
-                    .verticalScrollWithBar(state = rememberScrollState()),
+                    .verticalScroll(state = rememberScrollState()),
                 isVisible = isVisible
             ) { scope ->
                 Spacer(Modifier)
@@ -640,7 +641,18 @@ private fun ScreenHeader(
                 }
             }
 
-            val versions by VersionsManager.versions.collectAsStateWithLifecycle()
+            var versions by remember { mutableStateOf(VersionsManager.versions) }
+            DisposableEffect(Unit) {
+                val listener: suspend (List<Version>) -> Unit = { versions0 ->
+                    versions = versions0
+                }
+
+                VersionsManager.registerListener(listener)
+                onDispose {
+                    VersionsManager.unregisterListener(listener)
+                }
+            }
+
             if (versions.isNotEmpty()) {
                 Row {
                     //不使用viewModel存储，防止版本刷新这里状态不同步

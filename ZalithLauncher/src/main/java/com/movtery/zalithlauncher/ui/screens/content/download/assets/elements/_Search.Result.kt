@@ -86,12 +86,8 @@ import com.movtery.zalithlauncher.game.download.assets.platform.PlatformFilterCo
 import com.movtery.zalithlauncher.game.download.assets.platform.PlatformSearchData
 import com.movtery.zalithlauncher.game.download.assets.utils.ModTranslations
 import com.movtery.zalithlauncher.game.download.assets.utils.getMcmodTitle
-import com.movtery.zalithlauncher.setting.AllSettings
-import com.movtery.zalithlauncher.ui.AndroidStringText
-import com.movtery.zalithlauncher.ui.buildAppendedText
 import com.movtery.zalithlauncher.ui.components.ScalingLabel
 import com.movtery.zalithlauncher.ui.components.SmallOutlinedEditField
-import com.movtery.zalithlauncher.ui.screens.content.elements.backgroundGlass
 import com.movtery.zalithlauncher.ui.theme.cardColor
 import com.movtery.zalithlauncher.ui.theme.onCardColor
 import com.movtery.zalithlauncher.utils.animation.getAnimateTween
@@ -101,7 +97,24 @@ import com.movtery.zalithlauncher.utils.string.isEmptyOrBlank
 sealed interface SearchAssetsState {
     data object Searching: SearchAssetsState
     data class Success(val page: AssetsPage): SearchAssetsState
-    data class Error(val message: AndroidStringText): SearchAssetsState
+    data class Error(val message: Int, val args: Array<Any>? = null): SearchAssetsState {
+        override fun equals(other: Any?): Boolean {
+            if (this === other) return true
+            if (javaClass != other?.javaClass) return false
+
+            other as Error
+
+            if (message != other.message) return false
+            if (!args.contentEquals(other.args)) return false
+            return true
+        }
+
+        override fun hashCode(): Int {
+            var result = message
+            result = 31 * result + (args?.contentHashCode() ?: 0)
+            return result
+        }
+    }
 }
 
 /**
@@ -197,16 +210,15 @@ fun ResultListLayout(
         }
         is SearchAssetsState.Error -> {
             Box(modifier.padding(all = 12.dp)) {
+                val message = if (searchState.args != null) {
+                    stringResource(searchState.message, *searchState.args)
+                } else {
+                    stringResource(searchState.message)
+                }
+
                 ScalingLabel(
                     modifier = Modifier.align(Alignment.Center),
-                    text = {
-                        AndroidStringText(
-                            text = buildAppendedText {
-                                append(R.string.download_assets_failed_to_get_result)
-                                append(searchState.message)
-                            }
-                        )
-                    },
+                    text = stringResource(R.string.download_assets_failed_to_get_result, message),
                     onClick = onReload
                 )
             }
@@ -219,10 +231,8 @@ private fun PageController(
     modifier: Modifier = Modifier,
     page: AssetsPage,
     shape: Shape = MaterialTheme.shapes.large,
-    influencedByBackground: Boolean = true,
-    color: Color = cardColor(influencedByBackground),
+    color: Color = cardColor(),
     contentColor: Color = onCardColor(),
-    blur: Int = AllSettings.backgroundBlur.state,
     onPreviousPage: () -> Unit,
     onNextPage: () -> Unit,
     onNavigatePage: (Int) -> Unit
@@ -253,7 +263,6 @@ private fun PageController(
                         .width(72.dp),
                     value = numberText,
                     onValueChange = onValueChange@ { value ->
-                        if (page.totalPage <= 0) return@onValueChange
                         val number0 = if (value.isEmptyOrBlank()) {
                             1 //为了编辑体验，留空时视为1
                         } else {
@@ -300,14 +309,12 @@ private fun PageController(
         contentColor = contentColor
     ) {
         Row(
-            modifier = Modifier
-                .backgroundGlass(blur, color, influencedByBackground)
-                .padding(all = 4.dp),
+            modifier = Modifier.padding(all = 4.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Row(
                 modifier = Modifier
-                    .clickable(enabled = !editPageNumber && page.totalPage > 0) {
+                    .clickable(enabled = !editPageNumber) {
                         editPageNumber = true
                     },
                 verticalAlignment = Alignment.CenterVertically
@@ -378,7 +385,7 @@ private fun ResultList(
             val modloaders = remember(item) { item.platformModLoaders() }
             val categories = remember(item, classes) { item.platformCategories(classes) }
 
-            ResultProjectLayout(
+            ResultItemLayout(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(vertical = 6.dp),
@@ -400,12 +407,11 @@ private fun ResultList(
 }
 
 @Composable
-fun ResultProjectLayout(
+private fun ResultItemLayout(
     modifier: Modifier = Modifier,
     platform: Platform,
     title: String,
     description: String,
-    classes: PlatformClasses? = null,
     iconUrl: String? = null,
     author: String? = null,
     downloads: Long = 0L,
@@ -413,10 +419,8 @@ fun ResultProjectLayout(
     modloaders: List<PlatformDisplayLabel>? = null,
     categories: List<PlatformFilterCode>? = null,
     shape: Shape = MaterialTheme.shapes.large,
-    influencedByBackground: Boolean = true,
-    color: Color = cardColor(influencedByBackground),
+    color: Color = cardColor(),
     contentColor: Color = onCardColor(),
-    blur: Int = AllSettings.backgroundBlur.state,
     onClick: () -> Unit = {}
 ) {
     val context = LocalContext.current
@@ -435,7 +439,6 @@ fun ResultProjectLayout(
     ) {
         Row(
             modifier = Modifier
-                .backgroundGlass(blur, color, influencedByBackground)
                 .padding(all = 8.dp)
                 .height(IntrinsicSize.Min),
             horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -511,40 +514,28 @@ fun ResultProjectLayout(
                     }
                 }
 
+                //标签栏
                 Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier
+                        .basicMarquee(Int.MAX_VALUE)
+                        .alpha(0.7f),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    //标签栏
-                    Row(
-                        modifier = Modifier
-                            .weight(1f)
-                            .basicMarquee(Int.MAX_VALUE)
-                            .alpha(0.7f),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        modloaders?.let {
-                            it.forEach { modloader ->
-                                Text(
-                                    text = modloader.getDisplayName(),
-                                    style = MaterialTheme.typography.labelSmall
-                                )
-                            }
-                        }
-                        categories?.let {
-                            it.forEach { category ->
-                                Text(
-                                    text = stringResource(category.getDisplayName()),
-                                    style = MaterialTheme.typography.labelSmall
-                                )
-                            }
+                    modloaders?.let {
+                        it.forEach { modloader ->
+                            Text(
+                                text = modloader.getDisplayName(),
+                                style = MaterialTheme.typography.labelSmall
+                            )
                         }
                     }
-
-                    //资源的类别
-                    if (classes != null) {
-                        ClassesIdentifier(classes = classes)
+                    categories?.let {
+                        it.forEach { category ->
+                            Text(
+                                text = stringResource(category.getDisplayName()),
+                                style = MaterialTheme.typography.labelSmall
+                            )
+                        }
                     }
                 }
             }

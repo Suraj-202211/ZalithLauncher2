@@ -18,7 +18,7 @@
 
 package com.movtery.zalithlauncher.game.version.multiplayer
 
-import com.movtery.zalithlauncher.utils.logging.Logger
+import com.movtery.zalithlauncher.utils.logging.Logger.lWarning
 import com.movtery.zalithlauncher.utils.network.ServerAddress
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -26,8 +26,6 @@ import java.io.IOException
 import java.net.InetAddress
 import java.net.InetSocketAddress
 import java.net.UnknownHostException
-
-private const val TAG = "ServerAddressResolver"
 
 data class ResolvedServerAddress(
     val hostName: String,
@@ -57,7 +55,7 @@ suspend fun ServerAddress.resolve(): ResolvedServerAddress {
                 val address = InetSocketAddress(resolvedAddress, port)
                 address.toData()
             } catch (e: UnknownHostException) {
-                Logger.warning(TAG, "Couldn't resolve server $host address", e)
+                lWarning("Couldn't resolve server $host address", e)
                 null
             }
         }

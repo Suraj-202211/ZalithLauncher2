@@ -25,6 +25,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Text
@@ -50,11 +51,10 @@ import com.movtery.zalithlauncher.game.version.installed.VersionsManager
 import com.movtery.zalithlauncher.ui.components.MarqueeText
 import com.movtery.zalithlauncher.ui.components.SimpleAlertDialog
 import com.movtery.zalithlauncher.ui.components.fadeEdge
-import com.movtery.zalithlauncher.ui.components.verticalScrollWithBar
 import com.movtery.zalithlauncher.ui.screens.content.download.ModpackVersionNameDialog
 import com.movtery.zalithlauncher.ui.screens.content.download.assets.elements.PackIdentifier
 import com.movtery.zalithlauncher.ui.screens.content.elements.TitleTaskFlowDialog
-import com.movtery.zalithlauncher.utils.logging.Logger
+import com.movtery.zalithlauncher.utils.logging.Logger.lError
 import io.ktor.client.plugins.HttpRequestTimeoutException
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.serialization.SerializationException
@@ -62,11 +62,8 @@ import java.net.ConnectException
 import java.net.SocketTimeoutException
 import java.net.UnknownHostException
 import java.nio.channels.UnresolvedAddressException
-import java.util.concurrent.TimeoutException
 import kotlin.coroutines.Continuation
 import kotlin.coroutines.resume
-
-private const val TAG = "ModpackImportVM"
 
 /** 导入整合包相关操作 */
 sealed interface ModpackImportOperation {
@@ -242,7 +239,7 @@ fun ModpackImportOperation(
                     Column(
                         modifier = Modifier
                             .fadeEdge(state = scrollState)
-                            .verticalScrollWithBar(state = scrollState),
+                            .verticalScroll(state = scrollState),
                         verticalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
                         when (operation.reason) {
@@ -284,16 +281,17 @@ fun ModpackImportOperation(
         }
         is ModpackImportOperation.Error -> {
             val th = operation.th
-            Logger.error(TAG, "Failed to download the game!", th)
+            lError("Failed to download the game!", th)
             val message = when (th) {
-                is HttpRequestTimeoutException, is SocketTimeoutException, is TimeoutException -> stringResource(R.string.error_timeout)
+                is HttpRequestTimeoutException, is SocketTimeoutException -> stringResource(R.string.error_timeout)
                 is UnknownHostException, is UnresolvedAddressException -> stringResource(R.string.error_network_unreachable)
                 is ConnectException -> stringResource(R.string.error_connection_failed)
                 is SerializationException, is JsonSyntaxException -> stringResource(R.string.error_parse_failed)
                 is JvmCrashException -> stringResource(R.string.download_install_error_jvm_crash, th.code)
                 is DownloadFailedException -> stringResource(R.string.download_install_error_download_failed)
                 else -> {
-                    th.localizedMessage ?: th.message ?: th::class.qualifiedName ?: "Unknown error"
+                    val errorMessage = th.localizedMessage ?: th.message ?: th::class.qualifiedName ?: "Unknown error"
+                    stringResource(R.string.error_unknown, errorMessage)
                 }
             }
             val dismiss = {
@@ -309,7 +307,7 @@ fun ModpackImportOperation(
                     Column(
                         modifier = Modifier
                             .fadeEdge(state = scrollState)
-                            .verticalScrollWithBar(state = scrollState),
+                            .verticalScroll(state = scrollState),
                         verticalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
                         Text(text = stringResource(R.string.import_modpack_failed_text))

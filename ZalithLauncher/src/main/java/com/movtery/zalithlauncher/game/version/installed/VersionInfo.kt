@@ -19,11 +19,9 @@
 package com.movtery.zalithlauncher.game.version.installed
 
 import android.os.Parcelable
-import androidx.annotation.Keep
 import com.movtery.zalithlauncher.game.addons.modloader.ModLoader
 import kotlinx.parcelize.Parcelize
 
-@Keep
 @Parcelize
 class VersionInfo(
     val minecraftVersion: String,
@@ -44,7 +42,6 @@ class VersionInfo(
         return infoList.joinToString(", ")
     }
 
-    @Keep
     @Parcelize
     data class LoaderInfo(
         val loader: ModLoader,
@@ -72,7 +69,6 @@ class VersionInfo(
         }
     }
 
-    @Keep
     @Parcelize
     data class QuickPlay(
         val hasQuickPlaysSupport: Boolean,

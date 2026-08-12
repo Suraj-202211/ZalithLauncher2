@@ -18,7 +18,7 @@ public class CallbackBridge {
     
     public static final boolean INPUT_DEBUG_ENABLED;
     
-    // TODO send grab state event to Android
+    // NOTE send grab state event to Android
     
     static {
         INPUT_DEBUG_ENABLED = Boolean.parseBoolean(System.getProperty("glfwstub.debugInput", "false"));

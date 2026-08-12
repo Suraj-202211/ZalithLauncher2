@@ -32,14 +32,11 @@ import com.movtery.zalithlauncher.game.download.modpack.platform.AbstractPack
 import com.movtery.zalithlauncher.game.download.modpack.platform.PackPlatform
 import com.movtery.zalithlauncher.game.version.installed.VersionConfig
 import com.movtery.zalithlauncher.game.version.installed.VersionsManager
-import com.movtery.zalithlauncher.ui.androidText
 import com.movtery.zalithlauncher.utils.file.copyDirectoryContents
-import com.movtery.zalithlauncher.utils.logging.Logger
+import com.movtery.zalithlauncher.utils.logging.Logger.lDebug
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import java.io.File
-
-private const val TAG = "MultiMCPack"
 
 open class MultiMCPack(
     private val root: File,
@@ -78,19 +75,19 @@ open class MultiMCPack(
                 //解析 MultiMC 实例配置
                 addTask(
                     id = "ImportModpack.ParseMMCCfg",
-                    title = androidText(R.string.import_modpack_task_parse),
+                    title = context.getString(R.string.import_modpack_task_parse),
                     icon = R.drawable.ic_build_outlined
                 ) { task ->
                     task.updateProgress(-1f)
                     //MMC 实例配置文件
                     configuration = loadMMCConfigFromPack(root)?.also { configuration ->
-                        Logger.debug(TAG, "Successfully read the MultiMC instance configuration: $configuration")
+                        lDebug("Successfully read the MultiMC instance configuration: $configuration")
                     }
 
                     //成功识别后，开始提取整合包游戏文件
                     val minecraftDir = File(root, ".minecraft")
                     if (minecraftDir.exists() && minecraftDir.isDirectory) {
-                        task.updateMessage(androidText(R.string.import_modpack_task_extract_files))
+                        task.updateMessage(R.string.import_modpack_task_extract_files)
                         copyDirectoryContents(
                             from = minecraftDir,
                             to = versionFolder,
@@ -117,7 +114,7 @@ open class MultiMCPack(
                 //等待用户输入预安装版本名称
                 addTask(
                     id = "ImportModpack.WaitUserForVersionName",
-                    title = androidText(R.string.download_install_input_version_name),
+                    title = context.getString(R.string.download_install_input_version_name),
                     icon = R.drawable.ic_edit_outlined
                 ) { task ->
                     task.updateProgress(-1f)
@@ -127,7 +124,7 @@ open class MultiMCPack(
                 //分析并匹配模组加载器信息，并构造出游戏安装信息
                 addTask(
                     id = "ImportModpack.RetrieveLoader",
-                    title = androidText(R.string.download_modpack_get_loaders),
+                    title = context.getString(R.string.download_modpack_get_loaders),
                     icon = R.drawable.ic_build_outlined
                 ) {
                     val gameVersion = manifest.getMinecraftVersion()!!
@@ -160,7 +157,7 @@ open class MultiMCPack(
                                 //已经完成游戏安装，开始最终任务
                                 //整合包临时文件安装任务
                                 val finalTask = TitledTask(
-                                    title = androidText(R.string.download_modpack_final_move),
+                                    title = context.getString(R.string.download_modpack_final_move),
                                     runningIcon = R.drawable.ic_build_outlined,
                                     task = createFinalInstallTask(
                                         targetClientDir = targetClientDir,
@@ -211,8 +208,7 @@ open class MultiMCPack(
             }.save()
 
             //清理临时整合包目录
-            task.updateProgress(-1f)
-            task.updateMessage(androidText(R.string.download_install_clear_temp))
+            task.updateProgress(-1f, R.string.download_install_clear_temp)
             onClearTemp()
         }
     )

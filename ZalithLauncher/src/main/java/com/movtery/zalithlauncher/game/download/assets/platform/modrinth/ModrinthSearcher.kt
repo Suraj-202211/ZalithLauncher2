@@ -51,12 +51,9 @@ class ModrinthSearcher(
     }
 
     override suspend fun getProject(projectID: String): ModrinthSingleProject {
-        val project = httpGetJson<ModrinthSingleProject>(
+        return httpGetJson(
             url = "$api/project/$projectID"
         )
-        // 默认不做处理，不可访问的话，Modrinth 那边自己就会返回 404
-//        if (!project.isPublic()) throw NotFoundException("The project {$projectID} is not in a publicly available state.")
-        return project
     }
 
     /**

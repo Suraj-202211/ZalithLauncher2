@@ -87,6 +87,8 @@
     <string name="error_connection_failed">فشل في الاتصال بالخادم</string>
     <string name="error_parse_failed">فشل في تحليل البيانات</string>
     <string name="error_notfound">(%s) لم يتم العثور على الموارد</string>
+    <string name="error_client_error">(%s) خطأ العميل</string>
+    <string name="error_unknown">خطأ غير معروف: %s</string>
     <string name="splash_screen_unpack_desc">يحتاج مُشغِّل اللعبة إلى تثبيت هذه الملفات لضمان عمل ماين كرافت بشكل صحيح. هذه الملفات مُضمنة في التطبيق، ويجب استخراجها أولًا. انقر على الزر أدناه لبدء الاستخراج والتحديث.</string>
     <string name="splash_screen_installing">يقوم المُشغِّل باستخراج هذه الملفات. بعد الانتهاء، سيظهر تلقائيًا على الشاشة الرئيسية. يُرجى الانتظار بصبر.</string>
     <string name="splash_screen_agree">تثبيت</string>
@@ -357,6 +359,19 @@
     <string name="game_menu_option_show_menu_hided">تم تعطيل تراكب قائمة اللعبة. يمكنك فتح قائمة اللعبة باستخدام زر الرجوع في النظام.</string>
     <string name="game_menu_option_controls_opacity">تحكم في شفافية التخطيط</string>
     <string name="date_format">محدد تنسيق التاريخ الإقليمي، والذي يسمح بتحديد التنسيق وفقًا لاتفاقيات اللغة المحلية، ويتطلب وضع أي نص حرفي بين علامتي اقتباس مفردتين \'...\' حتى لا يتم تفسيره على أنه رموز تنسيق.</string>
+    <string name="game_styles_joystick">إدارة عصا التحكم</string>
+    <string name="game_styles_joystick_enable">تفعيل عصا التحكم</string>
+    <string name="game_styles_joystick_x">موقع عصا التحكم (محور X)</string>
+    <string name="game_styles_joystick_y">موقع عصا التحكم (محور Y)</string>
+    <string name="game_styles_joystick_size">حجم عصا التحكم</string>
+    <string name="game_styles_joystick_edit">تعديل نمط عصا التحكم</string>
+    <string name="game_styles_joystick_edit_use_control_layout">استخدام النمط المحدد في تخطيط عناصر التحكم</string>
+    <string name="game_styles_joystick_deadzone">نطاق منطقة الخمول لعصا التحكم</string>
+    <string name="game_styles_joystick_can_lock">قفل التحرك للأمام</string>
+    <string name="game_styles_joystick_lock_sprint">فرض الركض عند القفل</string>
+    <string name="game_styles_joystick_hide_when_mouse">إخفاء عند استخدام ماوس خارجي</string>
+    <string name="game_styles_joystick_hide_when_gamepad">إخفاء عند استخدام ذراع التحكم</string>
+    <string name="game_styles_save_failed">فشل حفظ النمط</string>
     <string name="renderer_version_support">دعم إصدارات MC:</string>
     <string name="renderer_version_unsupported_warning">العارض الحالي %s لا يدعم إصدار هذه اللعبة. الاستمرار في استخدامه قد يؤدي إلى أخطاء في العرض أو توقف مفاجئ! هل أنت متأكد من رغبتك في المتابعة؟</string>
     <string name="renderer_version_storage_permissions">يمكن ضبط العارض الحالي %s عبر ملف إعدادات. يرجى تفعيل إذن الوصول إلى وحدة التخزين الخارجية للمشغل أولاً، وإلا فلن يتمكن من قراءة وتحميل إعدادات العارض!</string>
@@ -508,8 +523,4 @@
     <string name="page_title_select_files">اختر المسار</string>
     <string name="unpack_screen_jre25">بيئة Java 25 (مطلوبة لـ Minecraft 26.1+)</string>
     <string name="unpack_screen_jna">يسمح لماينكرافت الوصول المباشر لوظائف نظام التشغيل منخفضة المستوى</string>
-    <string name="page_title_home_page_editor">محرر الصفحة الرئيسية</string>
-    <string name="files_browse_folder">تصفح المجلد</string>
-    <string name="files_importing">استيراد الملفات</string>
-    <string name="files_delete_file">…هل أنت متأكد من رغبتك في حذف %s؟</string>
 </resources>

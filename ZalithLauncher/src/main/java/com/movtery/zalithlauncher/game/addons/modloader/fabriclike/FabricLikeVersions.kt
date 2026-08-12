@@ -27,15 +27,14 @@ import com.movtery.zalithlauncher.path.GLOBAL_CLIENT
 import com.movtery.zalithlauncher.setting.AllSettings
 import com.movtery.zalithlauncher.setting.enums.MirrorSourceType
 import com.movtery.zalithlauncher.utils.isChinaMainland
-import com.movtery.zalithlauncher.utils.logging.Logger
+import com.movtery.zalithlauncher.utils.logging.Logger.lDebug
+import com.movtery.zalithlauncher.utils.logging.Logger.lWarning
 import com.movtery.zalithlauncher.utils.network.safeBodyAsJson
 import com.movtery.zalithlauncher.utils.network.withRetry
 import io.ktor.client.request.get
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-
-private const val TAG = "FabricLikeVersions"
 
 abstract class FabricLikeVersions(
     val officialUrl: String,
@@ -110,28 +109,28 @@ abstract class FabricLikeVersions(
         mcVersion: String,
         sourceUrl: String
     ): List<FabricLikeLoader>? = withContext(Dispatchers.IO) {
-        val url = "$sourceUrl/versions"
         try {
             val versions: FabricLikeVersionsJson = run {
                 if (!force && cacheVersions != null) return@run cacheVersions!!
                 withContext(Dispatchers.IO) {
-                    withRetry(tag, maxRetries = 2) { GLOBAL_CLIENT.get(url).safeBodyAsJson() }
+                    withRetry(tag, maxRetries = 2) { GLOBAL_CLIENT.get("$sourceUrl/versions").safeBodyAsJson() }
                 }
             }.also {
                 cacheVersions = it
             }
 
             if (!versions.game.any { it.version == mcVersion }) {
-                Logger.warning(TAG, "The version $mcVersion does not have a corresponding loader.")
+                lWarning("The version $mcVersion does not have a corresponding loader.")
                 return@withContext null
             }
 
             versions.loader
         } catch (_: CancellationException) {
-            Logger.debug(TAG, "Client cancelled.")
+            lDebug("Client cancelled.")
             null
         } catch (e: Exception) {
-            throw RuntimeException("Failed to fetch fabriclike loader list! url: $url", e)
+            lDebug("Failed to fetch loader list!", e)
+            throw e
         }
     }
 }

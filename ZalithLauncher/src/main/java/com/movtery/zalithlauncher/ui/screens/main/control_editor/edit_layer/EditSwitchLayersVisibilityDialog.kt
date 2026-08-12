@@ -18,7 +18,6 @@
 
 package com.movtery.zalithlauncher.ui.screens.main.control_editor.edit_layer
 
-import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
@@ -35,7 +34,6 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
-import androidx.compose.material3.scrollbar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateListOf
@@ -47,8 +45,8 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import com.movtery.layer_controller.event.ClickEvent
-import com.movtery.layer_controller.observable.ObservableClickEventsProvider
 import com.movtery.layer_controller.observable.ObservableControlLayer
+import com.movtery.layer_controller.observable.ObservableNormalData
 import com.movtery.zalithlauncher.R
 import com.movtery.zalithlauncher.ui.components.MarqueeText
 import com.movtery.zalithlauncher.ui.components.fadeEdge
@@ -59,12 +57,12 @@ import com.movtery.zalithlauncher.ui.theme.onCardColor
 import com.movtery.zalithlauncher.ui.theme.onItemColor
 
 /**
- * 编辑点击事件：切换控件层可见性
+ * 编辑按钮点击事件：切换控件层可见性
  * @param type 控制控件层的类型
  */
 @Composable
 fun EditSwitchLayersVisibilityDialog(
-    data: ObservableClickEventsProvider,
+    data: ObservableNormalData,
     layers: List<ObservableControlLayer>,
     type: ClickEvent.Type,
     onDismissRequest: () -> Unit
@@ -85,7 +83,7 @@ fun EditSwitchLayersVisibilityDialog(
         }
 
         if (unsafeEvents.isNotEmpty()) {
-            data.onRemoveAllEvents(unsafeEvents)
+            data.removeAllEvent(unsafeEvents)
             return@LaunchedEffect
         }
 
@@ -140,11 +138,7 @@ fun EditSwitchLayersVisibilityDialog(
                         modifier = Modifier
                             .fadeEdge(state = scrollState)
                             .weight(1f, fill = false)
-                            .fillMaxWidth()
-                            .scrollbar(
-                                state = scrollState.scrollIndicatorState,
-                                orientation = Orientation.Vertical,
-                            ),
+                            .fillMaxWidth(),
                         state = scrollState,
                         contentPadding = PaddingValues(horizontal = 2.dp, vertical = 12.dp),
                         verticalArrangement = Arrangement.spacedBy(12.dp)
@@ -157,9 +151,9 @@ fun EditSwitchLayersVisibilityDialog(
                                 onSelectedChange = { selected ->
                                     val event = ClickEvent(type, layer.uuid)
                                     if (selected) {
-                                        data.onAddEvent(event)
+                                        data.addEvent(event)
                                     } else {
-                                        data.onRemoveEvent(event)
+                                        data.removeEvent(event)
                                     }
                                 }
                             )
@@ -207,3 +201,5 @@ private fun LayerVisibilityItem(
         )
     }
 }
+
+

@@ -24,6 +24,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Text
@@ -57,7 +58,6 @@ import com.movtery.zalithlauncher.ui.components.MarqueeText
 import com.movtery.zalithlauncher.ui.components.NotificationCheck
 import com.movtery.zalithlauncher.ui.components.SimpleAlertDialog
 import com.movtery.zalithlauncher.ui.components.fadeEdge
-import com.movtery.zalithlauncher.ui.components.verticalScrollWithBar
 import com.movtery.zalithlauncher.ui.screens.NestedNavKey
 import com.movtery.zalithlauncher.ui.screens.NormalNavKey
 import com.movtery.zalithlauncher.ui.screens.TitledNavKey
@@ -67,7 +67,7 @@ import com.movtery.zalithlauncher.ui.screens.content.elements.TitleTaskFlowDialo
 import com.movtery.zalithlauncher.ui.screens.navigateTo
 import com.movtery.zalithlauncher.ui.screens.onBack
 import com.movtery.zalithlauncher.ui.screens.rememberTransitionSpec
-import com.movtery.zalithlauncher.utils.logging.Logger
+import com.movtery.zalithlauncher.utils.logging.Logger.lError
 import com.movtery.zalithlauncher.utils.network.isUsingMobileData
 import com.movtery.zalithlauncher.viewmodel.EventViewModel
 import com.movtery.zalithlauncher.viewmodel.sendKeepScreen
@@ -77,7 +77,6 @@ import java.net.ConnectException
 import java.net.SocketTimeoutException
 import java.net.UnknownHostException
 import java.nio.channels.UnresolvedAddressException
-import java.util.concurrent.TimeoutException
 
 /** 游戏安装状态操作 */
 private sealed interface GameInstallOperation {
@@ -337,9 +336,9 @@ private fun GameInstallOperation(
         }
         is GameInstallOperation.Error -> {
             val th = gameInstallOperation.th
-            Logger.error("InstallGame", "Failed to download the game!", th)
+            lError("Failed to download the game!", th)
             val message = when (th) {
-                is HttpRequestTimeoutException, is SocketTimeoutException, is TimeoutException -> stringResource(R.string.error_timeout)
+                is HttpRequestTimeoutException, is SocketTimeoutException -> stringResource(R.string.error_timeout)
                 is UnknownHostException, is UnresolvedAddressException -> stringResource(R.string.error_network_unreachable)
                 is ConnectException -> stringResource(R.string.error_connection_failed)
                 is SerializationException, is JsonSyntaxException -> stringResource(R.string.error_parse_failed)
@@ -347,7 +346,8 @@ private fun GameInstallOperation(
                 is JvmCrashException -> stringResource(R.string.download_install_error_jvm_crash, th.code)
                 is DownloadFailedException -> stringResource(R.string.download_install_error_download_failed)
                 else -> {
-                    th.localizedMessage ?: th.message ?: th::class.qualifiedName ?: "Unknown error"
+                    val errorMessage = th.localizedMessage ?: th.message ?: th::class.qualifiedName ?: "Unknown error"
+                    stringResource(R.string.error_unknown, errorMessage)
                 }
             }
             val dismiss = {
@@ -363,7 +363,7 @@ private fun GameInstallOperation(
                     Column(
                         modifier = Modifier
                             .fadeEdge(state = scrollState)
-                            .verticalScrollWithBar(state = scrollState),
+                            .verticalScroll(state = scrollState),
                         verticalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
                         Text(text = stringResource(R.string.download_install_error_message))

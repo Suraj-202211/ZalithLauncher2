@@ -18,7 +18,7 @@
 
 package com.movtery.zalithlauncher.ui.screens.content
 
-import androidx.compose.animation.AnimatedVisibility
+import android.widget.Toast
 import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -56,16 +56,13 @@ import com.movtery.zalithlauncher.path.PathManager
 import com.movtery.zalithlauncher.path.URL_EASYTIER
 import com.movtery.zalithlauncher.setting.AllSettings
 import com.movtery.zalithlauncher.terracotta.Terracotta
-import com.movtery.zalithlauncher.ui.androidText
 import com.movtery.zalithlauncher.ui.base.BaseScreen
 import com.movtery.zalithlauncher.ui.components.AnimatedRow
 import com.movtery.zalithlauncher.ui.components.BackgroundCard
 import com.movtery.zalithlauncher.ui.components.MarqueeText
 import com.movtery.zalithlauncher.ui.components.NotificationCheck
-import com.movtery.zalithlauncher.ui.components.OwnOutlinedTextField
 import com.movtery.zalithlauncher.ui.components.SimpleAlertDialog
 import com.movtery.zalithlauncher.ui.components.influencedByBackgroundColor
-import com.movtery.zalithlauncher.ui.components.verticalScrollWithBar
 import com.movtery.zalithlauncher.ui.screens.NormalNavKey
 import com.movtery.zalithlauncher.ui.screens.content.settings.layouts.CardPosition
 import com.movtery.zalithlauncher.ui.screens.content.settings.layouts.SettingsCard
@@ -75,7 +72,6 @@ import com.movtery.zalithlauncher.ui.theme.cardTitleColor
 import com.movtery.zalithlauncher.utils.file.shareFile
 import com.movtery.zalithlauncher.viewmodel.EventViewModel
 import com.movtery.zalithlauncher.viewmodel.ScreenBackStackViewModel
-import com.movtery.zalithlauncher.viewmodel.sendToast
 
 @Composable
 fun MultiplayerScreen(
@@ -114,7 +110,7 @@ fun MultiplayerScreen(
                         if (logFile.exists()) {
                             shareFile(context, logFile)
                         } else {
-                            eventViewModel.sendToast(androidText(R.string.terracotta_export_log_share_null))
+                            Toast.makeText(context, context.getString(R.string.terracotta_export_log_share_null), Toast.LENGTH_SHORT).show()
                         }
                     }
                 )
@@ -238,35 +234,6 @@ private fun MainMenu(
                                 operation = MultiplayerOperation.WarningNotification
                             }
                         }
-                    }
-                }
-            )
-
-            // 自定义服务器节点
-            SwitchSettingsCard(
-                modifier = Modifier.fillMaxWidth(),
-                position = CardPosition.Middle,
-                unit = AllSettings.enableTerracottaNodes,
-                title = stringResource(R.string.terracotta_custom_note_list),
-                verticalAlignment = Alignment.CenterVertically,
-                enabled = AllSettings.enableTerracotta.state,
-                columnLayout = {
-                    AnimatedVisibility(
-                        visible = AllSettings.enableTerracotta.state && AllSettings.enableTerracottaNodes.state,
-                    ) {
-                        OwnOutlinedTextField(
-                            modifier = Modifier.fillMaxWidth(),
-                            value = AllSettings.terracottaNodes.state,
-                            onValueChange = { value ->
-                                AllSettings.terracottaNodes.save(value)
-                            },
-                            label = {
-                                Text(text = stringResource(R.string.terracotta_custom_note_list_hint))
-                            },
-                            textStyle = MaterialTheme.typography.labelMedium,
-                            singleLine = true,
-                            shape = MaterialTheme.shapes.large,
-                        )
                     }
                 }
             )
@@ -430,7 +397,7 @@ private fun SingleTitleColumn(
 ) {
     TitleTextLayout(
         modifier = modifier
-            .verticalScrollWithBar(scrollState)
+            .verticalScroll(scrollState)
             .padding(all = 16.dp),
         title = title,
         text = text
@@ -451,7 +418,7 @@ private fun DoubleTitleColumn(
 ) {
     Column(
         modifier = modifier
-            .verticalScrollWithBar(scrollState)
+            .verticalScroll(scrollState)
             .padding(all = 16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {

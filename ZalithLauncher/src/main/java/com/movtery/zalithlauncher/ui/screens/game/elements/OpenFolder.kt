@@ -29,7 +29,6 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -42,7 +41,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.Button
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
@@ -50,7 +48,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.scrollbar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -74,6 +71,7 @@ import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.movtery.zalithlauncher.R
 import com.movtery.zalithlauncher.context.copyLocalFile
 import com.movtery.zalithlauncher.context.getFileName
+import com.movtery.zalithlauncher.contract.extensionToMimeType
 import com.movtery.zalithlauncher.ui.components.BackgroundCard
 import com.movtery.zalithlauncher.ui.components.CardTitleLayout
 import com.movtery.zalithlauncher.ui.components.MarqueeText
@@ -83,7 +81,6 @@ import com.movtery.zalithlauncher.ui.screens.content.elements.BaseFileItem
 import com.movtery.zalithlauncher.ui.theme.ZalithLauncherTheme
 import com.movtery.zalithlauncher.ui.theme.itemColor
 import com.movtery.zalithlauncher.ui.theme.onItemColor
-import com.movtery.zalithlauncher.ui.theme.showThemed
 import com.movtery.zalithlauncher.utils.animation.getAnimateTween
 import com.movtery.zalithlauncher.utils.animation.getAnimateTweenJellyBounce
 import com.movtery.zalithlauncher.utils.string.getMessageOrToString
@@ -198,8 +195,7 @@ fun OpenFolderLayer(
                         modifier = Modifier.fillMaxSize(),
                     ) {
                         CardTitleLayout(
-                            modifier = Modifier.fillMaxWidth(),
-                            blur = 0
+                            modifier = Modifier.fillMaxWidth()
                         ) {
                             Column(
                                 modifier = Modifier
@@ -231,18 +227,12 @@ fun OpenFolderLayer(
                             var deleteJob by remember { mutableStateOf<Job?>(null) }
 
                             //文件浏览区域
-                            val scrollState = rememberLazyListState()
                             LazyColumn(
                                 modifier = Modifier
                                     .weight(1f)
-                                    .fillMaxWidth()
-                                    .scrollbar(
-                                        state = scrollState.scrollIndicatorState,
-                                        orientation = Orientation.Vertical,
-                                    ),
+                                    .fillMaxWidth(),
                                 verticalArrangement = Arrangement.spacedBy(12.dp),
-                                contentPadding = PaddingValues(all = 12.dp),
-                                state = scrollState,
+                                contentPadding = PaddingValues(all = 12.dp)
                             ) {
                                 items(files) { file ->
                                     FileItem(
@@ -318,7 +308,7 @@ fun OpenFolderLayer(
                                     //导入按钮
                                     Button(
                                         onClick = {
-                                            launcher.launch("*/*")
+                                            launcher.launch("zip".extensionToMimeType())
                                         }
                                     ) {
                                         Text(text = stringResource(R.string.generic_import))
@@ -413,7 +403,7 @@ private fun ImportFileOperation(
                                     .setMessage(messageString)
                                     .setPositiveButton(R.string.generic_confirm) { dialog, _ ->
                                         dialog.dismiss()
-                                    }.showThemed()
+                                    }.show()
                             }
                         }
                     }
@@ -445,3 +435,4 @@ private fun OpenFolderLayerPreview() {
         }
     }
 }
+

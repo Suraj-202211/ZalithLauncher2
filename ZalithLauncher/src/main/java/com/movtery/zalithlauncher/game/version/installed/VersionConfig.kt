@@ -20,21 +20,18 @@ package com.movtery.zalithlauncher.game.version.installed
 
 import android.os.Parcel
 import android.os.Parcelable
-import androidx.annotation.Keep
 import com.google.gson.annotations.SerializedName
 import com.movtery.zalithlauncher.R
 import com.movtery.zalithlauncher.game.support.touch_controller.VibrationHandler
 import com.movtery.zalithlauncher.game.version.installed.VersionsManager.getZalithVersionPath
 import com.movtery.zalithlauncher.setting.AllSettings
 import com.movtery.zalithlauncher.utils.GSON
-import com.movtery.zalithlauncher.utils.logging.Logger
+import com.movtery.zalithlauncher.utils.logging.Logger.lError
+import com.movtery.zalithlauncher.utils.logging.Logger.lInfo
 import com.movtery.zalithlauncher.utils.string.getStringNotNull
 import java.io.File
 import java.io.FileWriter
 
-private const val TAG = "VersionConfig"
-
-@Keep
 class VersionConfig(
     @Transient
     private var versionPath: File
@@ -160,7 +157,7 @@ class VersionConfig(
         runCatching {
             saveWithThrowable()
         }.onFailure { e ->
-            Logger.error(TAG, "An exception occurred while saving the version configuration.", e)
+            lError("An exception occurred while saving the version configuration.", e)
         }
     }
 
@@ -174,7 +171,7 @@ class VersionConfig(
             val json = GSON.toJson(this)
             it.write(json)
         }
-        Logger.info(TAG, "Saved version configuration: $this")
+        lInfo("Saved version configuration: $this")
     }
 
     fun getVersionPath() = versionPath
@@ -273,7 +270,7 @@ class VersionConfig(
                     else -> createNewConfig(versionPath)
                 }
             }.onFailure {  e ->
-                Logger.error(TAG, "An exception occurred while parsing the version configuration.", e)
+                lError("An exception occurred while parsing the version configuration.", e)
             }.getOrElse {
                 createNewConfig(versionPath)
             }
@@ -293,11 +290,8 @@ class VersionConfig(
 }
 
 enum class SettingState(val textRes: Int) {
-    @SerializedName("FOLLOW_GLOBAL")
     FOLLOW_GLOBAL(R.string.generic_follow_global),
-    @SerializedName("ENABLE")
     ENABLE(R.string.generic_enable),
-    @SerializedName("DISABLE")
     DISABLE(R.string.generic_disable)
 }
 
@@ -306,16 +300,12 @@ enum class GraphicsApi(
     val option: String
 ) {
     /** 默认使用游戏设定 */
-    @SerializedName("DEFAULT")
     DEFAULT("", "\"default\""),
     /** 强制切换到OpenGL，覆盖游戏原有设定 */
-    @SerializedName("OPENGL")
     OPENGL("OpenGL", "\"opengl\""),
     /** 默认切换到OpenGL，如果游戏有设定过则不覆盖 */
-    @SerializedName("DEFAULT_OPENGL")
     DEFAULT_OPENGL(OPENGL.displayName, OPENGL.option),
     /** 强制切换到Vulkan，覆盖游戏原有设定 */
-    @SerializedName("VULKAN")
     VULKAN("Vulkan", "\"vulkan\"")
 }
 

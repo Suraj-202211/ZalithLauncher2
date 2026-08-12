@@ -30,15 +30,12 @@ import com.movtery.zalithlauncher.game.download.jvm_server.stopAllNonMainProcess
 import com.movtery.zalithlauncher.game.version.download.parseTo
 import com.movtery.zalithlauncher.game.versioninfo.models.GameManifest
 import com.movtery.zalithlauncher.path.LibPath
-import com.movtery.zalithlauncher.ui.androidText
 import com.movtery.zalithlauncher.utils.file.extractEntryToFile
 import com.movtery.zalithlauncher.utils.file.readText
-import com.movtery.zalithlauncher.utils.logging.Logger
+import com.movtery.zalithlauncher.utils.logging.Logger.lInfo
 import java.io.File
 import java.time.format.DateTimeFormatter
 import java.util.zip.ZipFile
-
-private const val TAG = "Install.OptiFine"
 
 const val OPTIFINE_INSTALL_ID = "Install.OptiFine"
 
@@ -55,10 +52,7 @@ fun getOptiFineInstallTask(
     return Task.runTask(
         id = OPTIFINE_INSTALL_ID,
         task = { task ->
-            task.updateProgress(-1f)
-            task.updateMessage(androidText(
-                R.string.download_game_install_base_installing, ModLoader.OPTIFINE.displayName
-            ))
+            task.updateProgress(-1f, R.string.download_game_install_base_installing, ModLoader.OPTIFINE.displayName)
 
             if (isNewVersion) {
                 stopAllNonMainProcesses(GlobalContext)
@@ -127,7 +121,7 @@ private fun checkOFLaunchWrapper(version: String, installer: ZipFile, libFolder:
 
     if (!lwTargetFile.exists()) {
         //安装出现神秘问题导致该文件未解压，自行尝试解压
-        Logger.info(TAG, "$fileName is not exists! try extract it by self.")
+        lInfo("$fileName is not exists! try extract it by self.")
         installer.extractEntryToFile(fileName, lwTargetFile)
     }
 }

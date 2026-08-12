@@ -18,22 +18,20 @@
 
 package com.movtery.zalithlauncher.ui.screens
 
+import androidx.annotation.StringRes
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.navigation3.runtime.NavBackStack
-import com.movtery.zalithlauncher.ui.AndroidStringText
 import kotlinx.serialization.Contextual
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.Transient
 import kotlin.reflect.KClass
 
 @Serializable
 abstract class BackStackNavKey<E: TitledNavKey>(
-    @Transient private val initTitle: AndroidStringText? = null
+    @field:StringRes
+    override val title: Int? = null
 ) : TitledNavKey {
-    override var title by mutableStateOf(initTitle)
-
     /** 当前屏幕正在使用的堆栈 */
     @Contextual
     val backStack: NavBackStack<E> = NavBackStack()
@@ -61,3 +59,4 @@ abstract class BackStackNavKey<E: TitledNavKey>(
         backStack.clearWith(navKey)
     }
 }
+

@@ -21,6 +21,7 @@ package com.movtery.layer_controller.observable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.input.pointer.PointerInputChange
 import com.movtery.layer_controller.data.ButtonPosition
 import com.movtery.layer_controller.data.ButtonSize
 import com.movtery.layer_controller.data.NormalData
@@ -49,12 +50,6 @@ class ObservableNormalData(data: NormalData) : ObservableWidget() {
     var isPenetrable by mutableStateOf(data.isPenetrable)
     var isToggleable by mutableStateOf(data.isToggleable)
 
-    override val behavior: InteractionBehavior
-        get() = InteractionBehavior.from(
-            isSwipple = isSwipple,
-            isToggleable = isToggleable
-        )
-
     /**
      * 当前是否处于按下状态
      */
@@ -68,12 +63,11 @@ class ObservableNormalData(data: NormalData) : ObservableWidget() {
         eventHandler: EventHandler,
         allLayers: List<ObservableControlLayer>
     ) {
-        when (behavior) {
-            is InteractionBehavior.Toggle -> isPressed = !isPressed
-            else -> {
-                if (isPressed) return
-                isPressed = true
-            }
+        if (isToggleable) {
+            isPressed = !isPressed
+        } else {
+            if (isPressed) return
+            isPressed = true
         }
         eventHandler.onKeyPressed(clickEvents, isPressed) { event ->
             eventHandler.onSwitchLayer(
@@ -140,6 +134,7 @@ class ObservableNormalData(data: NormalData) : ObservableWidget() {
     override fun onTouchEvent(
         eventHandler: EventHandler,
         allLayers: List<ObservableControlLayer>,
+        change: PointerInputChange,
         activeWidgets: List<ObservableWidget>,
         addThis: () -> Unit,
         consumeEvent: (Boolean) -> Unit
@@ -147,25 +142,34 @@ class ObservableNormalData(data: NormalData) : ObservableWidget() {
         if (activeWidgets.isEmpty()) {
             //新的按下事件
             addThis()
-            consumeEvent(!isPenetrable)
+            if (!isPenetrable) {
+                consumeEvent(true)
+            } else {
+                consumeEvent(false)
+            }
             pressStart(eventHandler, allLayers)
-        } else if (this !in activeWidgets && behavior.canBeSwipedTo) {
-            //滑动联动
-            //该控件允许被滑入，且活跃控件中无阻止滑动链的类型
-            if (activeWidgets.none { it.behavior.blocksSwipeChain }) {
+        } else if (this !in activeWidgets && isSwipple) {
+            //滑动到其他按钮时的处理
+            if (
+                activeWidgets.all {
+                    it is ObservableNormalData && it.isSwipple
+                } && isSwipple
+            ) {
                 addThis()
                 pressStart(eventHandler, allLayers)
             }
         }
     }
 
-    override fun isReleaseOnOutOfBounds(): Boolean = behavior.releaseOnOutOfBounds
+    override fun isReleaseOnOutOfBounds(): Boolean {
+        return isSwipple
+    }
 
     override fun onPointerBackInBounds(
         eventHandler: EventHandler,
         allLayers: List<ObservableControlLayer>
     ) {
-        if (behavior.releaseOnOutOfBounds) {
+        if (isSwipple) {
             pressStart(eventHandler, allLayers)
         }
     }
@@ -174,7 +178,7 @@ class ObservableNormalData(data: NormalData) : ObservableWidget() {
         eventHandler: EventHandler,
         allLayers: List<ObservableControlLayer>
     ) {
-        if (behavior is InteractionBehavior.Toggle || !isPressed) return
+        if (isToggleable || !isPressed) return
         isPressed = false
         eventHandler.onKeyPressed(clickEvents, isPressed)
     }

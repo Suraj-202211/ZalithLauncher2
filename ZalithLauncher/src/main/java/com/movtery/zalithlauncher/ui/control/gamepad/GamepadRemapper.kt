@@ -24,15 +24,13 @@ import android.view.InputDevice
 import android.view.KeyEvent
 import android.view.MotionEvent
 import com.movtery.zalithlauncher.setting.AllSettings
-import com.movtery.zalithlauncher.utils.logging.Logger
+import com.movtery.zalithlauncher.utils.logging.Logger.lError
 import com.movtery.zalithlauncher.viewmodel.GamepadViewModel
 import kotlinx.parcelize.IgnoredOnParcel
 import kotlinx.parcelize.Parcelize
 import kotlin.math.abs
 import kotlin.math.hypot
 import kotlin.math.max
-
-private const val TAG = "GamepadRemapper"
 
 private const val AXIS_TO_KEY_ACTIVATION_THRESHOLD = 0.6f
 private const val AXIS_TO_KEY_RESET_THRESHOLD = 0.4f
@@ -176,7 +174,7 @@ data class GamepadRemapper(
             val deadzone = (range?.flat ?: 0f) * deadzoneScale
             max(deadzone, 0.1f * deadzoneScale)
         } catch (e: Exception) {
-            Logger.error(TAG, "Dynamic Deadzone is not supported", e)
+            lError("Dynamic Deadzone is not supported", e)
             0.2f
         }
     }

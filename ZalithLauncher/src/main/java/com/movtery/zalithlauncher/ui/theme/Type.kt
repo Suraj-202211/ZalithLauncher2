@@ -1,23 +1,36 @@
-/*
- * Zalith Launcher 2
- * Copyright (C) 2025 MovTery <movtery228@qq.com> and contributors
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
- * See the GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <https://www.gnu.org/licenses/gpl-3.0.txt>.
- */
-
 package com.movtery.zalithlauncher.ui.theme
 
-import androidx.compose.material3.Typography
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.sp
 
-val AppTypography = Typography()
+val OrbitronFamily = FontFamily.SansSerif
+val InterFamily = FontFamily.SansSerif
+val MonoFamily = FontFamily.Monospace
+
+val DisplayLG  = TextStyle(fontFamily=OrbitronFamily,
+    fontWeight=FontWeight.Bold,   fontSize=32.sp,
+    letterSpacing=(-0.3).sp)
+val HeadingLG  = TextStyle(fontFamily=OrbitronFamily,
+    fontWeight=FontWeight.Bold,   fontSize=24.sp)
+val HeadingMD  = TextStyle(fontFamily=OrbitronFamily,
+    fontWeight=FontWeight.Medium, fontSize=20.sp)
+val HeadingSM  = TextStyle(fontFamily=OrbitronFamily,
+    fontWeight=FontWeight.Medium, fontSize=16.sp)
+val TitleLG    = TextStyle(fontFamily=InterFamily,
+    fontWeight=FontWeight.SemiBold, fontSize=18.sp)
+val BodyLG     = TextStyle(fontFamily=InterFamily,
+    fontWeight=FontWeight.Normal,   fontSize=16.sp)
+val BodyMD     = TextStyle(fontFamily=InterFamily,
+    fontWeight=FontWeight.Normal,   fontSize=14.sp)
+val BodySM     = TextStyle(fontFamily=InterFamily,
+    fontWeight=FontWeight.Normal,   fontSize=13.sp)
+val LabelLG    = TextStyle(fontFamily=InterFamily,
+    fontWeight=FontWeight.SemiBold, fontSize=14.sp,
+    letterSpacing=0.4.sp)
+val LabelSM    = TextStyle(fontFamily=InterFamily,
+    fontWeight=FontWeight.Medium,   fontSize=11.sp,
+    letterSpacing=0.5.sp)
+val MonoMD     = TextStyle(fontFamily=MonoFamily,
+    fontWeight=FontWeight.Normal,   fontSize=13.sp)

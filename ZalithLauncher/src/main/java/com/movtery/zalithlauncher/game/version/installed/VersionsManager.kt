@@ -18,11 +18,14 @@
 
 package com.movtery.zalithlauncher.game.version.installed
 
-import com.movtery.zalithlauncher.BuildKeys
 import com.movtery.zalithlauncher.game.launch.LogName
 import com.movtery.zalithlauncher.game.path.getVersionsHome
 import com.movtery.zalithlauncher.game.version.installed.utils.parseJsonToVersionInfo
-import com.movtery.zalithlauncher.utils.logging.Logger
+import com.movtery.zalithlauncher.info.InfoDistributor
+import com.movtery.zalithlauncher.utils.logging.Logger.lDebug
+import com.movtery.zalithlauncher.utils.logging.Logger.lError
+import com.movtery.zalithlauncher.utils.logging.Logger.lInfo
+import com.movtery.zalithlauncher.utils.logging.Logger.lWarning
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -35,30 +38,30 @@ import kotlinx.coroutines.sync.withLock
 import org.apache.commons.io.FileUtils
 import java.io.File
 
-private const val TAG = "VersionsManager"
-
 object VersionsManager {
     private val scope = CoroutineScope(Dispatchers.IO)
     private val mutex = Mutex()
-    private val listeners: MutableList<suspend () -> Unit> = mutableListOf()
+    private val listeners: MutableList<suspend (List<Version>) -> Unit> = mutableListOf()
 
     /**
      * 注册版本列表刷新监听器
      */
-    fun registerListener(listener: suspend () -> Unit) {
+    fun registerListener(listener: suspend (List<Version>) -> Unit) {
         listeners.add(listener)
     }
 
     /**
      * 移除版本列表刷新监听器
      */
-    fun unregisterListener(listener: suspend () -> Unit) {
+    fun unregisterListener(listener: suspend (List<Version>) -> Unit) {
         listeners.remove(listener)
     }
 
-    private val _versions = MutableStateFlow<List<Version>>(emptyList())
-    /** 当前所有的游戏版本 */
-    val versions = _versions.asStateFlow()
+    /**
+     * 当前所有的游戏版本
+     */
+    var versions: List<Version> = emptyList()
+        private set
 
     /**
      * 当前的游戏信息
@@ -95,14 +98,14 @@ object VersionsManager {
         currentJob = scope.launch {
             mutex.withLock {
                 _isRefreshing.update { true }
-                Logger.debug(TAG, "Initiated by $tag: starting to refresh the version list.")
+                lDebug("Initiated by $tag: starting to refresh the version list.")
 
                 if (trySetVersion != null) {
                     saveCurrentVersion(trySetVersion, refresh = false)
-                    Logger.debug(TAG, "Has attempted to save the current version: $trySetVersion")
+                    lDebug("Has attempted to save the current version: $trySetVersion")
                 }
 
-                _versions.update { emptyList() }
+                versions = emptyList()
 
                 val newVersions = mutableListOf<Version>()
                 File(getVersionsHome()).listFiles()?.forEach { versionFile ->
@@ -113,13 +116,13 @@ object VersionsManager {
                     }
                 }
 
-                _versions.update { newVersions.sortedWith(VersionComparator) }
+                versions = newVersions.sortedWith(VersionComparator)
 
                 gameInfo = refreshCurrentInfo()
-                Logger.debug(TAG, "Version list refreshed, refreshing the current version now.")
+                lDebug("Version list refreshed, refreshing the current version now.")
                 refreshCurrentVersion()
 
-                listeners.forEach { it() }
+                listeners.forEach { it.invoke(versions) }
 
                 _isRefreshing.update { false }
             }
@@ -159,7 +162,7 @@ object VersionsManager {
                 versionInfo.getVersionType()
             )
 
-            Logger.info(TAG, 
+            lInfo(
                 "Identified and added version: ${version.getVersionName()}, " +
                         "Path: (${version.getVersionPath()}), " +
                         "Info: ${version.getVersionInfo()?.getInfoString()}"
@@ -172,11 +175,10 @@ object VersionsManager {
 
     private fun refreshCurrentVersion() {
         val version = run {
-            val currentList = _versions.value
-            if (currentList.isEmpty()) return@run null
+            if (versions.isEmpty()) return@run null
 
             fun getVersionByFirst(): Version? {
-                return currentList.find { it.isValid() }?.apply {
+                return versions.find { it.isValid() }?.apply {
                     //确保版本有效
                     saveCurrentVersion(getVersionName(), refresh = false)
                 }
@@ -184,53 +186,49 @@ object VersionsManager {
 
             runCatching {
                 val versionString = gameInfo!!.version
-                currentList.getVersion(versionString) ?: run {
-                    Logger.debug(TAG, "Stored version $versionString not found, using the first available version instead.")
+                getVersion(versionString) ?: run {
+                    lDebug("Stored version $versionString not found, using the first available version instead.")
                     getVersionByFirst()
                 }
             }.onFailure { e ->
-                Logger.warning(TAG, "The current version information has not been initialized yet.", e)
+                lWarning("The current version information has not been initialized yet.", e)
             }.getOrElse {
                 getVersionByFirst()
             }
         }.also { version ->
-            Logger.debug(TAG, "The current version is: ${version?.getVersionName()}")
+            lDebug("The current version is: ${version?.getVersionName()}")
         }
 
         _currentVersion.update { version }
     }
 
-    private fun List<Version>.getVersion(name: String?): Version? {
+    fun getVersion(name: String?): Version? {
         name?.let { versionName ->
-            return find { it.getVersionName() == versionName }?.takeIf { it.isValid() }
+            return versions.find { it.getVersionName() == versionName }?.takeIf { it.isValid() }
         }
         return null
-    }
-
-    fun getVersion(name: String?): Version? {
-        return _versions.value.getVersion(name)
     }
 
     /**
      * @return 通过版本名，判断其版本是否存在
      */
     fun checkVersionExistsByName(versionName: String?) =
-        versionName?.let { name -> _versions.value.any { it.getVersionName() == name } } ?: false
+        versionName?.let { name -> versions.any { it.getVersionName() == name } } ?: false
 
     /**
      * @return 获取 Zalith 启动器版本标识文件夹
      */
-    fun getZalithVersionPath(version: Version) = File(version.getVersionPath(), BuildKeys.LAUNCHER_IDENTIFIER)
+    fun getZalithVersionPath(version: Version) = File(version.getVersionPath(), InfoDistributor.LAUNCHER_IDENTIFIER)
 
     /**
      * @return 通过目录获取 Zalith 启动器版本标识文件夹
      */
-    fun getZalithVersionPath(folder: File) = File(folder, BuildKeys.LAUNCHER_IDENTIFIER)
+    fun getZalithVersionPath(folder: File) = File(folder, InfoDistributor.LAUNCHER_IDENTIFIER)
 
     /**
      * @return 通过名称获取 Zalith 启动器版本标识文件夹
      */
-    fun getZalithVersionPath(name: String) = File(getVersionPath(name), BuildKeys.LAUNCHER_IDENTIFIER)
+    fun getZalithVersionPath(name: String) = File(getVersionPath(name), InfoDistributor.LAUNCHER_IDENTIFIER)
 
     /**
      * @return 游戏的上一次运行日志
@@ -277,11 +275,11 @@ object VersionsManager {
                 saveCurrentInfo()
             }
             if (refresh) {
-                Logger.debug(TAG, "Current game info file saved, refreshing the current version now.")
+                lDebug("Current game info file saved, refreshing the current version now.")
                 refreshCurrentVersion()
             }
         }.onFailure { e ->
-            Logger.error(TAG, "An exception occurred while saving the currently selected version information.", e)
+            lError("An exception occurred while saving the currently selected version information.", e)
         }
     }
 

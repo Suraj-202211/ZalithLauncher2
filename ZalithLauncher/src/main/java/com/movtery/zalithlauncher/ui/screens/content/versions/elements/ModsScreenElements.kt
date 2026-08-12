@@ -19,15 +19,17 @@
 package com.movtery.zalithlauncher.ui.screens.content.versions.elements
 
 import android.content.Context
-import androidx.compose.foundation.gestures.Orientation
+import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -37,16 +39,15 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
-import androidx.compose.material3.Checkbox
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.scrollbar
+import androidx.compose.material3.VerticalDivider
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -60,19 +61,19 @@ import androidx.compose.ui.window.Dialog
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.google.gson.JsonSyntaxException
 import com.movtery.zalithlauncher.R
+import com.movtery.zalithlauncher.game.download.assets.platform.PlatformVersion
 import com.movtery.zalithlauncher.game.download.assets.utils.getMcmodTitle
 import com.movtery.zalithlauncher.game.download.jvm_server.JvmCrashException
 import com.movtery.zalithlauncher.game.version.download.DownloadFailedException
 import com.movtery.zalithlauncher.game.version.mod.LocalMod
 import com.movtery.zalithlauncher.game.version.mod.RemoteMod
 import com.movtery.zalithlauncher.game.version.mod.isEnabled
+import com.movtery.zalithlauncher.game.version.mod.update.ModData
 import com.movtery.zalithlauncher.game.version.mod.update.ModUpdater
-import com.movtery.zalithlauncher.game.version.mod.update.SelectableModManifest
 import com.movtery.zalithlauncher.ui.components.MarqueeText
 import com.movtery.zalithlauncher.ui.components.ProgressDialog
 import com.movtery.zalithlauncher.ui.components.SimpleAlertDialog
 import com.movtery.zalithlauncher.ui.components.fadeEdge
-import com.movtery.zalithlauncher.ui.components.verticalScrollWithBar
 import com.movtery.zalithlauncher.ui.screens.content.download.assets.elements.AssetsIcon
 import com.movtery.zalithlauncher.ui.screens.content.elements.TitleTaskFlowDialog
 import com.movtery.zalithlauncher.ui.screens.content.versions.elements.ModStateFilter.All
@@ -82,14 +83,13 @@ import com.movtery.zalithlauncher.ui.theme.cardColor
 import com.movtery.zalithlauncher.ui.theme.itemColor
 import com.movtery.zalithlauncher.ui.theme.onCardColor
 import com.movtery.zalithlauncher.ui.theme.onItemColor
-import com.movtery.zalithlauncher.utils.logging.Logger
+import com.movtery.zalithlauncher.utils.logging.Logger.lError
 import io.ktor.client.plugins.HttpRequestTimeoutException
 import kotlinx.serialization.SerializationException
 import java.net.ConnectException
 import java.net.SocketTimeoutException
 import java.net.UnknownHostException
 import java.nio.channels.UnresolvedAddressException
-import java.util.concurrent.TimeoutException
 
 sealed interface ModsOperation {
     data object None : ModsOperation
@@ -114,7 +114,7 @@ sealed interface ModsUpdateOperation {
 sealed interface ModsConfirmOperation {
     data object None : ModsConfirmOperation
     /** 等待用户确认模组更新的信息 */
-    data class WaitingConfirm(val list: List<SelectableModManifest>) : ModsConfirmOperation
+    data class WaitingConfirm(val map: Map<ModData, PlatformVersion>) : ModsConfirmOperation
 }
 
 @Composable
@@ -191,16 +191,17 @@ fun ModsUpdateOperation(
         }
         is ModsUpdateOperation.Error -> {
             val th = operation.th
-            Logger.error("UpdateMods", "Failed to update the mods", th)
+            lError("Failed to update the mods", th)
             val message = when (th) {
-                is HttpRequestTimeoutException, is SocketTimeoutException, is TimeoutException -> stringResource(R.string.error_timeout)
+                is HttpRequestTimeoutException, is SocketTimeoutException -> stringResource(R.string.error_timeout)
                 is UnknownHostException, is UnresolvedAddressException -> stringResource(R.string.error_network_unreachable)
                 is ConnectException -> stringResource(R.string.error_connection_failed)
                 is SerializationException, is JsonSyntaxException -> stringResource(R.string.error_parse_failed)
                 is JvmCrashException -> stringResource(R.string.download_install_error_jvm_crash, th.code)
                 is DownloadFailedException -> stringResource(R.string.download_install_error_download_failed)
                 else -> {
-                    th.localizedMessage ?: th.message ?: th::class.qualifiedName ?: "Unknown error"
+                    val errorMessage = th.localizedMessage ?: th.message ?: th::class.qualifiedName ?: "Unknown error"
+                    stringResource(R.string.error_unknown, errorMessage)
                 }
             }
             val dismiss = {
@@ -216,7 +217,7 @@ fun ModsUpdateOperation(
                     Column(
                         modifier = Modifier
                             .fadeEdge(state = scrollState)
-                            .verticalScrollWithBar(state = scrollState),
+                            .verticalScroll(state = scrollState),
                         verticalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
                         Text(text = stringResource(R.string.mods_update_failed_text))
@@ -245,19 +246,18 @@ fun ModsUpdateOperation(
 fun ModsConfirmOperation(
     operation: ModsConfirmOperation,
     onCancel: () -> Unit,
-    onConfirm: (List<SelectableModManifest>) -> Unit
+    onConfirm: () -> Unit
 ) {
     when (operation) {
         is ModsConfirmOperation.None -> {}
         is ModsConfirmOperation.WaitingConfirm -> {
-            val list = operation.list
             ModsUpdateListDialog(
-                manifests = list,
+                data = operation.map.toList(),
                 onCancel = {
                     onCancel()
                 },
                 onConfirm = {
-                    onConfirm(list)
+                    onConfirm()
                 }
             )
         }
@@ -269,7 +269,7 @@ fun ModsConfirmOperation(
  */
 @Composable
 private fun ModsUpdateListDialog(
-    manifests: List<SelectableModManifest>,
+    data: List<Pair<ModData, PlatformVersion>>,
     onCancel: () -> Unit,
     onConfirm: () -> Unit
 ) {
@@ -306,16 +306,12 @@ private fun ModsUpdateListDialog(
                     LazyColumn(
                         modifier = Modifier
                             .fadeEdge(state = scrollState)
-                            .weight(1f, fill = false)
-                            .scrollbar(
-                                state = scrollState.scrollIndicatorState,
-                                orientation = Orientation.Vertical,
-                            ),
+                            .weight(1f, fill = false),
                         state = scrollState,
                         verticalArrangement = Arrangement.spacedBy(12.dp),
                         contentPadding = PaddingValues(vertical = 12.dp)
                     ) {
-                        items(manifests) { entry ->
+                        items(data) { entry ->
                             ModsUpdateEntryItem(
                                 modifier = Modifier.fillMaxWidth(),
                                 entry = entry
@@ -353,7 +349,7 @@ private fun ModsUpdateListDialog(
  */
 @Composable
 private fun ModsUpdateEntryItem(
-    entry: SelectableModManifest,
+    entry: Pair<ModData, PlatformVersion>,
     modifier: Modifier = Modifier,
     shape: Shape = MaterialTheme.shapes.large,
     color: Color = itemColor(false),
@@ -361,68 +357,67 @@ private fun ModsUpdateEntryItem(
 ) {
     val context = LocalContext.current
 
-    val data = entry.data
-    val newVersion = entry.new
-    val selected by entry.selected.collectAsStateWithLifecycle()
+    val data = entry.first
+    val newVersion = entry.second
 
     Surface(
         modifier = modifier,
         shape = shape,
         color = color,
         contentColor = contentColor,
-        onClick = {
-            entry.updateSelected(!selected)
-        },
     ) {
         Row(
+            modifier = Modifier.padding(8.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Row(
-                modifier = Modifier
-                    .weight(1f)
-                    .padding(8.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically
+            AssetsIcon(
+                modifier = Modifier.clip(shape = RoundedCornerShape(10.dp)),
+                size = 34.dp,
+                iconUrl = data.project.iconUrl
+            )
+
+            Column(
+                modifier = Modifier.weight(1f)
             ) {
-                AssetsIcon(
-                    modifier = Modifier.clip(shape = RoundedCornerShape(12.dp)),
-                    size = 52.dp,
-                    iconUrl = data.project.iconUrl
+                val title = data.project.title
+                val displayTitle = data.mcMod?.getMcmodTitle(title, context) ?: title
+                Text(
+                    modifier = Modifier.basicMarquee(iterations = Int.MAX_VALUE),
+                    text = displayTitle,
+                    style = MaterialTheme.typography.titleSmall,
+                    maxLines = 1
                 )
 
-                Column(
-                    modifier = Modifier.weight(1f)
+                //新旧版本对比
+                Row(
+                    modifier = Modifier
+                        .height(IntrinsicSize.Min)
+                        .fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    val title = data.project.title
-                    val displayTitle = data.mcMod?.getMcmodTitle(title, context) ?: title
-                    MarqueeText(
-                        modifier = Modifier.fillMaxWidth(),
-                        text = displayTitle,
-                        style = MaterialTheme.typography.titleSmall,
-                    )
                     //旧版本
                     MarqueeText(
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier.weight(1f),
                         text = data.currentVersion ?: "???", //未知
                         style = MaterialTheme.typography.labelSmall.copy(
                             textDecoration = TextDecoration.LineThrough
                         )
                     )
+                    VerticalDivider(
+                        modifier = Modifier
+                            .fillMaxHeight()
+                            .padding(vertical = 2.dp),
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f)
+                    )
                     //新版本
                     MarqueeText(
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier.weight(1f),
                         text = newVersion.platformVersion(),
                         style = MaterialTheme.typography.labelSmall
                     )
                 }
             }
-
-            Checkbox(
-                checked = selected,
-                onCheckedChange = { value ->
-                    entry.updateSelected(value)
-                }
-            )
         }
     }
 }

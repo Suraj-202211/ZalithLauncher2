@@ -80,7 +80,7 @@ private data class JvmCrash(
 ): Parcelable
 
 @AndroidEntryPoint
-class ErrorActivity : BaseAppCompatActivity() {
+class ErrorActivity : BaseAppCompatActivity(refreshData = false) {
 
     /**
      * 游戏崩溃日志上传逻辑管理 ViewModel
@@ -91,7 +91,6 @@ class ErrorActivity : BaseAppCompatActivity() {
         super.onCreate(savedInstanceState)
 
         val extras = intent.extras ?: return runFinish()
-        extras.classLoader = javaClass.classLoader
 
         val exitType = extras.getString(BUNDLE_EXIT_TYPE, EXIT_LAUNCHER)
 
@@ -126,10 +125,10 @@ class ErrorActivity : BaseAppCompatActivity() {
 
         val logFile = errorMessage.logFile
         val canRestart: Boolean = extras.getBoolean(BUNDLE_CAN_RESTART, true)
-        val logExists = logFile.exists() && logFile.isFile
 
         setContent {
             ZalithLauncherTheme {
+
                 ShareLinkOperation(
                     operation = viewModel.operation,
                     onChange = { viewModel.operation = it },
@@ -149,11 +148,11 @@ class ErrorActivity : BaseAppCompatActivity() {
                 ) {
                     ErrorScreen(
                         crashType = errorMessage.crashType,
-                        shareLogs = logExists,
+                        shareLogs = logFile.exists() && logFile.isFile,
                         canUpload = viewModel.canUpload,
                         canRestart = canRestart,
                         onShareLogsClick = {
-                            if (logExists) {
+                            if (logFile.exists() && logFile.isFile) {
                                 shareFile(this@ErrorActivity, logFile)
                             }
                         },
@@ -163,10 +162,7 @@ class ErrorActivity : BaseAppCompatActivity() {
                         onRestartClick = {
                             ProcessPhoenix.triggerRebirth(this@ErrorActivity)
                         },
-                        onExitClick = { finish() },
-                        onOrientationChanged = {
-                            this@ErrorActivity.requestedOrientation = it
-                        },
+                        onExitClick = { finish() }
                     ) {
                         Text(
                             text = errorMessage.message,

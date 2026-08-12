@@ -74,6 +74,8 @@
     <string name="error_parse_failed">Не удалось обработать данные</string>
     <string name="error_unauthorized">(%s) Неавторизован</string>
     <string name="error_notfound">(%s) Ресурс не найден</string>
+    <string name="error_client_error">(%s) Ошибка клиента</string>
+    <string name="error_unknown">Неизвестная ошибка: %s</string>
     <!-- Splash Screen -->
     <string name="splash_screen_unpack_desc">Лаунчеру необходимо установить эти файлы для корректной работы Minecraft. Они включены в приложение и должны быть распакованы перед использованием. Нажмите кнопку ниже, чтобы начать распаковку и обновление.</string>
     <string name="splash_screen_installing">Лаунчер распаковывает файлы. После завершения вы автоматически перейдёте на главный экран. Пожалуйста, подождите.</string>
@@ -357,7 +359,7 @@
     <string name="settings_renderer_full_screen_title">Игнорирование выреза</string>
     <string name="settings_renderer_full_screen_summary">Игнорирует вырез под фронтальную камеру и даёт дополнительное место для изображение под ней</string>
     <string name="settings_renderer_sustained_performance_title">Режим стабильной производительности</string>
-    <string name="settings_renderer_sustained_performance_summary">При включении снижает производительность устройства для предотвращения тротлинга, подходит для длительных мучений телефона</string>
+    <string name="settings_renderer_sustained_performance_summary">При включении снижает производительность устройства для предотвращения тротлинга, подходит для длительных длительный мучений телефона</string>
     <string name="settings_renderer_shader_dump_title">Логирование шейдеров</string>
     <string name="settings_renderer_shader_dump_summary">Выводить преобразованный код шейдеров во время работы игры в лог-файл для упрощения отладки и анализа рендеринга графики</string>
     <string name="settings_renderer_vulkan_driver_system_title">Использовать системный драйвер Vulkan</string>
@@ -1014,9 +1016,24 @@
     <string name="control_editor_edit_text_size">Размер текста</string>
     <string name="control_editor_edit_text_size_custom">Пользовательский размер текста</string>
     <string name="generic_saved">Сохранено</string>
+    <string name="game_styles_joystick">Настройка джойстика</string>
+    <string name="game_styles_joystick_enable">Включить джойстик</string>
+    <string name="game_styles_joystick_x">Положение джойстика по оси X</string>
+    <string name="game_styles_joystick_y">Положение джойстика по оси Y</string>
+    <string name="game_styles_joystick_size">Размер джойстика</string>
+    <string name="game_styles_joystick_edit">Редактировать стиль джойстика</string>
+    <string name="game_styles_joystick_can_lock">Удержание направления (автоспринт)</string>
+    <string name="game_styles_joystick_lock_sprint">Постоянный спринт при фиксации направления</string>
+    <string name="game_styles_joystick_hide_when_mouse">Скрывать при использовании физической мыши</string>
+    <string name="game_styles_joystick_hide_when_gamepad">Скрывать при использовании геймпада</string>
+    <string name="game_styles_save_failed">Не удалось сохранить стиль</string>
     <string name="account_change_cape_cache_all">Кэширование всех плащей</string>
     <string name="cape_name_zombie_horse">Зомби-лошадь</string>
+    <string name="control_editor_special_joystick_style">Стиль джойстика</string>
+    <string name="control_editor_special_joystick_style_create_title">Создать стиль джойстика</string>
+    <string name="control_editor_special_joystick_style_create_summary">Создайте собственный стиль джойстика для этой раскладки. Если стиль не задан, лаунчер будет использовать стиль джойстика по умолчанию.</string>
     <string name="control_editor_special_joystick_style_delete_title">Удалить стиль джойстика</string>
+    <string name="control_editor_special_joystick_style_delete_summary">Удалить собственный стиль джойстика для этой раскладки. После этого будет использоваться стандартный стиль джойстика лаунчера.</string>
     <string name="control_editor_special_joystick_style_joystick_color">Цвет джойстика</string>
     <string name="control_editor_special_joystick_style_joystick_can_lock_color">Цвет джойстика (при фиксации)</string>
     <string name="control_editor_special_joystick_style_joystick_locked_color">Цвет джойстика (зафиксированный)</string>
@@ -1024,6 +1041,7 @@
     <string name="control_editor_special_joystick_style_background_rounded_corner">Радиус скругления фона</string>
     <string name="control_editor_special_joystick_style_joystick_rounded_corner">Радиус скругления джойстика</string>
     <string name="control_editor_special_joystick_style_joystick_size">Размер джойстика</string>
+    <string name="game_styles_joystick_edit_use_control_layout">Использовать стиль из раскладки управления</string>
     <string name="upgrade_title">Проверить обновления</string>
     <string name="upgrade_new">Найдена новая версия</string>
     <string name="upgrade_more">Подробнее</string>
@@ -1035,6 +1053,9 @@
     <string name="upgrade_get_remote_failed">Не удалось проверить обновления. Пожалуйста, попробуйте позже.</string>
     <string name="upgrade_is_latest">У вас уже установлена последняя версия</string>
     <string name="upgrade_cloud_drive">Облачное хранилище</string>
+    <string name="control_editor_special_joystick_style_tip_summary">Из-за сложности реализации система раскладки не поддерживает прямую интеграцию джойстика. Для его использования включите \"Универсальный джойстик\" в игровом меню. При этом внешний вид джойстика можно настроить через раскладку управления, чтобы сохранить единый стиль</string>
+    <string name="game_styles_joystick_deadzone">Диапазон мертвой зоны джойстика</string>
+    <string name="control_editor_special_joystick_style_tip_title">Не получается создать джойстик?</string>
     <string name="generic_copied">Скопировано</string>
     <string name="crash_link_share_button">Поделиться ссылкой</string>
     <string name="crash_link_share_tip">Лаунчер загрузит логи игры на публичную платформу и предоставит вам ссылку, которой можно удобно поделиться с другими для диагностики</string>
@@ -1070,6 +1091,7 @@
     <string name="download_game_version_overwrite_select">Версия для перезаписи</string>
     <string name="download_game_version_overwrite_select_subtitle">Выберите версию для перезаписи. Эту функцию можно использовать для обновления или отката версии</string>
     <string name="version_summary_fools_herd_craft">Хватит наводить порядок в инвентаре — ваши предметы и блоки хотят бегать на свободе вместе с вами!</string>
+    <string name="game_styles_joystick_lock_threshold">Порог фиксации направления</string>
     <string name="plugin_unsupported_warning">Плагин %s не поддерживается для этой версии игры. Его использование может привести к крашу игры! Вы уверены, что хотите продолжить на свой страх и риск?</string>
     <string name="plugin_download_title">Скачать плагин</string>
     <string name="plugin_download_summary">Скачайте плагин и установите его как приложение. Просто перезапустите лаунчер, и он загрузится автоматически!</string>
@@ -1187,6 +1209,7 @@
     <string name="control_editor_layers_delete">Вы уверены, что хотите удалить слой раскладки %s?</string>
     <string name="control_editor_layers_attribute_hide_when_mouse">Скрывать при использовании мыши</string>
     <string name="control_editor_layers_attribute_hide_when_gamepad">Скрывать при использовании геймпада</string>
+    <string name="control_editor_layers_attribute_hide_when_joystick">Скрывать при включённом джойстике</string>
     <string name="control_editor_edit_dialog_delete_widget">Вы уверены, что хотите удалить этот элемент?</string>
     <string name="control_editor_edit_style_config_common_style">Не разделять по тёмной теме</string>
     <string name="control_editor_edit_style_config_delete">Вы уверены, что хотите удалить вариант оформления %s?</string>

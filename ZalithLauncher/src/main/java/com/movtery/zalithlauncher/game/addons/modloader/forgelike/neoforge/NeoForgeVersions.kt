@@ -26,7 +26,8 @@ import com.movtery.zalithlauncher.game.addons.modloader.forgelike.neoforge.model
 import com.movtery.zalithlauncher.setting.AllSettings
 import com.movtery.zalithlauncher.setting.enums.MirrorSourceType
 import com.movtery.zalithlauncher.utils.isChinaMainland
-import com.movtery.zalithlauncher.utils.logging.Logger
+import com.movtery.zalithlauncher.utils.logging.Logger.lDebug
+import com.movtery.zalithlauncher.utils.logging.Logger.lWarning
 import com.movtery.zalithlauncher.utils.network.httpGetJson
 import com.movtery.zalithlauncher.utils.network.withRetry
 import kotlinx.coroutines.CancellationException
@@ -90,7 +91,7 @@ object NeoForgeVersions {
     }
 
     private suspend fun fetchListWithOfficial() = withContext(Dispatchers.IO) {
-        processVersionList(SourceType.OFFICIAL) {
+        processVersionList {
             val neoforge = withRetry(TAG, maxRetries = 2) {
                 httpGetJson<NeoForgedMaven>(url = "https://maven.neoforged.net/api/maven/versions/releases/net/neoforged/neoforge")
             }
@@ -109,7 +110,7 @@ object NeoForgeVersions {
         delayMillis = delayMillis,
         type = SourceType.BMCLAPI
     ) {
-        processVersionList(SourceType.BMCLAPI) {
+        processVersionList {
             val neoforge = withRetry(TAG, maxRetries = 2) {
                 httpGetJson<BMCLAPIMaven>(url = "https://bmclapi2.bangbang93.com/neoforge/meta/api/maven/details/releases/net/neoforged/neoforge")
             }
@@ -125,7 +126,6 @@ object NeoForgeVersions {
      * 统一处理任务，处理异常、排序
      */
     private suspend fun processVersionList(
-        sourceType: SourceType,
         block: suspend () -> List<NeoForgeVersion>
     ): List<NeoForgeVersion>? = withContext(Dispatchers.IO) {
         try {
@@ -133,10 +133,11 @@ object NeoForgeVersions {
                 .sortedByDescending { it.forgeBuildVersion }
                 .toList()
         } catch (_: CancellationException) {
-            Logger.debug(TAG, "Client cancelled.")
+            lDebug("Client cancelled.")
             null
         } catch (e: Exception) {
-            throw RuntimeException("Failed to fetch neoforge list! source: ${sourceType.displayName}", e)
+            lWarning("Failed to fetch neoforge list!", e)
+            throw e
         }
     }
 

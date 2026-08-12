@@ -27,6 +27,7 @@ import android.net.Uri
 import android.os.Build
 import android.os.Environment
 import android.provider.MediaStore
+import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.animateDpAsState
@@ -57,7 +58,6 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -92,11 +92,10 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import coil3.compose.AsyncImage
-import com.movtery.zalithlauncher.BuildKeys
 import com.movtery.zalithlauncher.R
 import com.movtery.zalithlauncher.game.version.installed.Version
 import com.movtery.zalithlauncher.game.version.installed.VersionFolders
-import com.movtery.zalithlauncher.ui.androidText
+import com.movtery.zalithlauncher.info.InfoDistributor
 import com.movtery.zalithlauncher.ui.base.BaseScreen
 import com.movtery.zalithlauncher.ui.components.CardTitleLayout
 import com.movtery.zalithlauncher.ui.components.EdgeDirection
@@ -117,11 +116,9 @@ import com.movtery.zalithlauncher.ui.theme.itemColor
 import com.movtery.zalithlauncher.ui.theme.onItemColor
 import com.movtery.zalithlauncher.utils.animation.getAnimateTween
 import com.movtery.zalithlauncher.utils.animation.swapAnimateDpAsState
-import com.movtery.zalithlauncher.utils.logging.Logger
+import com.movtery.zalithlauncher.utils.logging.Logger.lError
 import com.movtery.zalithlauncher.utils.string.getMessageOrToString
 import com.movtery.zalithlauncher.viewmodel.ErrorViewModel
-import com.movtery.zalithlauncher.viewmodel.EventViewModel
-import com.movtery.zalithlauncher.viewmodel.sendToast
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CancellationException
@@ -133,8 +130,6 @@ import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.IOException
 import javax.inject.Inject
-
-private const val TAG = "ScreenshotsManager"
 
 /**
  * 游戏内截图信息
@@ -267,7 +262,7 @@ class ScreenshotsManageViewModel @Inject constructor(
                 }
                 onSuccess()
             } catch (e: Exception) {
-                Logger.error(TAG, "Failed to export screenshots!", e)
+                lError("Failed to export screenshots!", e)
                 onFailed(e)
             }
         }
@@ -281,7 +276,7 @@ class ScreenshotsManageViewModel @Inject constructor(
         file: File
     ) {
         val fileName = file.name
-        val relativePath = Environment.DIRECTORY_PICTURES + "/" + BuildKeys.LAUNCHER_IDENTIFIER + "/"
+        val relativePath = Environment.DIRECTORY_PICTURES + "/" + InfoDistributor.LAUNCHER_IDENTIFIER + "/"
 
         //如果是已存在的文件，则Uri不为null
         val existingUri = queryExistingUri(resolver, fileName, relativePath)
@@ -407,14 +402,12 @@ class ScreenshotsManageViewModel @Inject constructor(
     }
 }
 
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun ScreenshotsManagerScreen(
     mainScreenKey: TitledNavKey?,
     versionsScreenKey: TitledNavKey?,
     version: Version,
     backToMainScreen: () -> Unit,
-    eventViewModel: EventViewModel,
     submitError: (ErrorViewModel.ThrowableMessage) -> Unit
 ) {
     if (!version.isValid()) {
@@ -441,6 +434,8 @@ fun ScreenshotsManagerScreen(
             viewModel.initDirectory(screenshotDir)
         }
 
+        val context = LocalContext.current
+
         DeleteAllOperation(
             operation = viewModel.deleteAllOperation,
             changeOperation = { viewModel.deleteAllOperation = it },
@@ -448,6 +443,8 @@ fun ScreenshotsManagerScreen(
             onRefresh = { viewModel.refresh() }
         )
 
+        val successToast = stringResource(R.string.screenshots_manage_export_success)
+        val failedMessage = stringResource(R.string.screenshots_manage_export_failed)
         ExportDialogHandler(
             operation = viewModel.exportOperation,
             updateOperation = { viewModel.exportOperation = it },
@@ -456,14 +453,14 @@ fun ScreenshotsManagerScreen(
                 viewModel.exports(
                     onSuccess = {
                         withContext(Dispatchers.Main) {
-                            eventViewModel.sendToast(androidText(R.string.generic_saved))
+                            Toast.makeText(context, successToast, Toast.LENGTH_SHORT).show()
                         }
                     },
                     onFailed = { e ->
                         submitError(
                             ErrorViewModel.ThrowableMessage(
-                                title = androidText(R.string.screenshots_manage_export_failed),
-                                message = androidText(e.getMessageOrToString())
+                                title = failedMessage,
+                                message = e.getMessageOrToString()
                             )
                         )
                     }
@@ -746,7 +743,7 @@ private fun ScreenshotGrid(
                                 }
                                 context.startActivity(intent)
                             } catch (e: Exception) {
-                                Logger.error(TAG, "Failed to open image", e)
+                                lError("Failed to open image", e)
                             }
                         }
                     )

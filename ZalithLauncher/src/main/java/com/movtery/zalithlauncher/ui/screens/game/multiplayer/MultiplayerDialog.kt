@@ -20,7 +20,6 @@ package com.movtery.zalithlauncher.ui.screens.game.multiplayer
 
 import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -35,11 +34,9 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
@@ -48,7 +45,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.scrollbar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -67,10 +63,8 @@ import androidx.compose.ui.window.DialogProperties
 import com.movtery.zalithlauncher.R
 import com.movtery.zalithlauncher.terracotta.TerracottaState
 import com.movtery.zalithlauncher.terracotta.profile.TerracottaProfile
-import com.movtery.zalithlauncher.ui.AndroidStringText
 import com.movtery.zalithlauncher.ui.components.BackgroundCard
 import com.movtery.zalithlauncher.ui.components.MarqueeText
-import com.movtery.zalithlauncher.ui.components.verticalScrollWithBar
 import com.movtery.zalithlauncher.ui.theme.cardColor
 import com.movtery.zalithlauncher.ui.theme.itemColor
 import com.movtery.zalithlauncher.ui.theme.onCardColor
@@ -100,7 +94,6 @@ sealed interface TerracottaLogOperation {
  * @param onGuestCopyUrl 房客复制备用链接
  * @param onBack 退出当前步骤
  */
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun MultiplayerDialog(
     onClose: () -> Unit,
@@ -116,8 +109,7 @@ fun MultiplayerDialog(
     onHostCopyCode: (TerracottaState.HostOK) -> Unit,
     onGuestPositive: (roomCode: String) -> Unit,
     onGuestCopyUrl: (TerracottaState.GuestOK) -> Unit,
-    onBack: () -> Unit,
-    onShowToast: (AndroidStringText) -> Unit = {}
+    onBack: () -> Unit
 ) {
     Dialog(
         onDismissRequest = {},
@@ -171,8 +163,7 @@ fun MultiplayerDialog(
                                         modifier = commonModifier,
                                         onHostClick = onHostRoleClick,
                                         onGuestPositive = onGuestPositive,
-                                        isInteractive = isWaitingInteractive,
-                                        onShowToast = onShowToast
+                                        isInteractive = isWaitingInteractive
                                     )
                                 }
                                 is TerracottaState.HostScanning -> {
@@ -309,14 +300,12 @@ fun MultiplayerDialog(
 /**
  * 等待选择角色
  */
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun WaitingUI(
     isInteractive: Boolean,
     onHostClick: () -> Unit,
     onGuestPositive: (roomCode: String) -> Unit,
     modifier: Modifier = Modifier,
-    onShowToast: (AndroidStringText) -> Unit = {},
     scrollState: ScrollState = rememberScrollState()
 ) {
     var guestOperation by remember { mutableStateOf<GuestWaitingOperation>(GuestWaitingOperation.None) }
@@ -361,8 +350,7 @@ private fun WaitingUI(
     GuestWaitingOperation(
         operation = guestOperation,
         onChange = { guestOperation = it },
-        onPositive = onGuestPositive,
-        onShowToast = onShowToast
+        onPositive = onGuestPositive
     )
 }
 
@@ -468,7 +456,7 @@ private fun OkRoomUI(
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxWidth()
-                    .verticalScrollWithBar(rememberScrollState()),
+                    .verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
                 Text(text = okText)
@@ -530,16 +518,9 @@ private fun ProfileListPanel(
         Text(text = title)
         HorizontalDivider()
 
-        val scrollState = rememberLazyListState()
         LazyColumn(
-            modifier = Modifier
-                .weight(1f)
-                .scrollbar(
-                    state = scrollState.scrollIndicatorState,
-                    orientation = Orientation.Vertical,
-                ),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-            state = scrollState,
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             items(items = profiles, key = { it.toString() }) { profile ->
                 TerracottaProfileLayout(
@@ -593,7 +574,7 @@ private fun ExceptionUI(
         Column(
             modifier = Modifier
                 .weight(1f)
-                .verticalScrollWithBar(scrollState),
+                .verticalScroll(scrollState),
             verticalArrangement = Arrangement.spacedBy(4.dp)
         ) {
             Text(text = title)
@@ -631,7 +612,7 @@ private fun LogUI(
         Column(
             modifier = Modifier
                 .weight(1f)
-                .verticalScrollWithBar(scrollState),
+                .verticalScroll(scrollState),
             verticalArrangement = Arrangement.spacedBy(4.dp)
         ) {
             Text(text = logString)
@@ -665,7 +646,7 @@ private fun CommonProgressLayout(
         Column(
             modifier = Modifier
                 .weight(1f)
-                .verticalScrollWithBar(scrollState),
+                .verticalScroll(scrollState),
             verticalArrangement = Arrangement.spacedBy(4.dp)
         ) c1@{
             Text(text = progress)
@@ -786,3 +767,4 @@ private fun SimpleRowButton(
         }
     }
 }
+

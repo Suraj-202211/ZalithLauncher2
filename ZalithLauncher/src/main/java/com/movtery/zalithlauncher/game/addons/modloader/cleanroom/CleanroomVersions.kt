@@ -19,7 +19,8 @@
 package com.movtery.zalithlauncher.game.addons.modloader.cleanroom
 
 import com.movtery.zalithlauncher.path.GLOBAL_CLIENT
-import com.movtery.zalithlauncher.utils.logging.Logger
+import com.movtery.zalithlauncher.utils.logging.Logger.lDebug
+import com.movtery.zalithlauncher.utils.logging.Logger.lWarning
 import com.movtery.zalithlauncher.utils.network.safeBodyAsJson
 import com.movtery.zalithlauncher.utils.network.withRetry
 import io.ktor.client.request.get
@@ -39,7 +40,7 @@ object CleanroomVersions {
     suspend fun fetchLoaderList(mcVersion: String): List<CleanroomVersion>? {
         //Cleanroom 仅支持 1.12.2
         if (mcVersion != "1.12.2") {
-            Logger.warning(TAG, "Cleanroom only supports 1.12.2, current input: $mcVersion")
+            lWarning("Cleanroom only supports 1.12.2, current input: $mcVersion")
             return null
         }
 
@@ -55,10 +56,10 @@ object CleanroomVersions {
                     }
                 }
             } catch (_: CancellationException) {
-                Logger.debug(TAG, "Client cancelled.")
+                lDebug("Client cancelled.")
                 null
             } catch (e: Exception) {
-                Logger.debug(TAG, "Failed to fetch loader list!", e)
+                lDebug("Failed to fetch loader list!", e)
                 throw e
             }
         }

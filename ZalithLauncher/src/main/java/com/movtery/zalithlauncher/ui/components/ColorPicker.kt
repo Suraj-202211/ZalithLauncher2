@@ -33,6 +33,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
@@ -60,9 +61,7 @@ import com.movtery.colorpicker.components.HueBarPicker
 import com.movtery.zalithlauncher.R
 import com.movtery.zalithlauncher.ui.theme.cardColor
 import com.movtery.zalithlauncher.ui.theme.onCardColor
-import com.movtery.zalithlauncher.utils.logging.Logger
-
-private const val TAG = "ColorPicker"
+import com.movtery.zalithlauncher.utils.logging.Logger.lDebug
 
 /**
  * 一个简易的颜色选择器
@@ -147,7 +146,7 @@ fun ColorPickerDialog(
                             Column(
                                 modifier = Modifier
                                     .weight(1f)
-                                    .verticalScrollWithBar(rememberScrollState()),
+                                    .verticalScroll(rememberScrollState()),
                                 verticalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
                                 if (showAlpha || showHue) {
@@ -327,7 +326,7 @@ fun String.toColorOrNull(): Color? {
             else -> null
         }
     } catch (_: Exception) {
-        Logger.debug(TAG, "Failed to convert hex to color, input: $this")
+        lDebug("Failed to convert hex to color, input: $this")
         null
     }
 }

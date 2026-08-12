@@ -58,3 +58,4 @@ fun mutableStateOfLog(): MutableState<LogState> {
         else CLOSE
     )
 }
+

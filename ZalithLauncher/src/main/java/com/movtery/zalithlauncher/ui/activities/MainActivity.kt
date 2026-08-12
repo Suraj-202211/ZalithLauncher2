@@ -33,6 +33,10 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.foundation.layout.padding
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.Density
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -44,19 +48,13 @@ import com.movtery.zalithlauncher.context.COPY_LABEL_LINK
 import com.movtery.zalithlauncher.coroutine.Task
 import com.movtery.zalithlauncher.coroutine.TaskSystem
 import com.movtery.zalithlauncher.game.control.ControlManager
-import com.movtery.zalithlauncher.game.plugin.PluginLoader
 import com.movtery.zalithlauncher.game.plugin.driver.DriverPluginManager
-import com.movtery.zalithlauncher.game.renderer.Renderers
 import com.movtery.zalithlauncher.game.version.installed.VersionsManager
 import com.movtery.zalithlauncher.notification.NotificationManager
 import com.movtery.zalithlauncher.path.PathManager
 import com.movtery.zalithlauncher.path.URL_SUPPORT
 import com.movtery.zalithlauncher.setting.AllSettings
-import com.movtery.zalithlauncher.ui.AndroidStringText
-import com.movtery.zalithlauncher.ui.androidText
 import com.movtery.zalithlauncher.ui.base.BaseAppCompatActivity
-import com.movtery.zalithlauncher.ui.base.ObserveFullScreenSetting
-import com.movtery.zalithlauncher.ui.buildAppendedText
 import com.movtery.zalithlauncher.ui.components.SimpleAlertDialog
 import com.movtery.zalithlauncher.ui.screens.NestedNavKey
 import com.movtery.zalithlauncher.ui.screens.NormalNavKey
@@ -69,8 +67,6 @@ import com.movtery.zalithlauncher.ui.screens.main.crashlogs.LogShareMenuOperatio
 import com.movtery.zalithlauncher.ui.screens.main.crashlogs.ShareLinkOperation
 import com.movtery.zalithlauncher.ui.theme.ZalithLauncherTheme
 import com.movtery.zalithlauncher.ui.theme.feativals.FestivalEffects
-import com.movtery.zalithlauncher.ui.theme.showThemed
-import com.movtery.zalithlauncher.ui.toAndroidString
 import com.movtery.zalithlauncher.ui.vulkan_checker.VCOperation
 import com.movtery.zalithlauncher.ui.vulkan_checker.VulkanChecker
 import com.movtery.zalithlauncher.upgrade.TooFrequentOperationException
@@ -80,7 +76,8 @@ import com.movtery.zalithlauncher.utils.device.VulkanChecker
 import com.movtery.zalithlauncher.utils.festival.getTodayFestivals
 import com.movtery.zalithlauncher.utils.file.shareFile
 import com.movtery.zalithlauncher.utils.isChinese
-import com.movtery.zalithlauncher.utils.logging.Logger
+import com.movtery.zalithlauncher.utils.logging.Logger.lInfo
+import com.movtery.zalithlauncher.utils.logging.Logger.lWarning
 import com.movtery.zalithlauncher.utils.network.openLink
 import com.movtery.zalithlauncher.utils.network.openLinkInternal
 import com.movtery.zalithlauncher.utils.string.getMessageOrToString
@@ -105,15 +102,20 @@ import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import java.io.File
 import java.util.Locale
-
-private const val TAG = "MainActivity"
-
+import com.modulamobile.ui.update.UpdateViewModel
+import com.modulamobile.ui.update.UpdateBanner
+import com.modulamobile.ui.update.UpdateProgressSheet
+import com.modulamobile.ui.update.MandatoryUpdateScreen
+import com.modulamobile.updater.UpdateState
+import com.modulamobile.settings.modulaDataStore
+import kotlinx.coroutines.flow.first
+import android.util.Log
 @AndroidEntryPoint
 class MainActivity : BaseAppCompatActivity() {
-    override fun isIgnoreNotch(): Boolean = AllSettings.launcherFullScreen.getValue()
-
     /**
      * 屏幕堆栈管理ViewModel
      */
@@ -170,29 +172,87 @@ class MainActivity : BaseAppCompatActivity() {
     private val vulkanCheckerViewModel: VulkanCheckerViewModel by viewModels()
 
     /**
+     * OTA Update ViewModel
+     */
+    val updateViewModel: UpdateViewModel by viewModels()
+
+    /**
+     * Settings ViewModel
+     */
+    val settingsViewModel: com.modulamobile.ui.settings.SettingsViewModel by viewModels()
+
+    /**
      * 是否开启捕获按键模式
      */
     private var isCaptureKey = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        //处理外部导入
-        val isImporting = handleImportIfNeeded(intent)
-
-        //加载渲染器
-        Renderers.init()
-        //加载插件
-        PluginLoader.loadAllPlugins(this, false)
-        refreshData()
 
         //初始化通知管理（创建渠道）
         NotificationManager.initManager(this)
+
+        // Sync RAM allocation from DataStore to AllSettings on cold start
+        val savedRam = kotlinx.coroutines.runBlocking {
+            modulaDataStore.data.first()[com.modulamobile.settings.PreferenceKeys.RAM_MB] ?: 2048
+        }
+        com.movtery.zalithlauncher.setting.AllSettings.ramAllocation.save(savedRam)
+
+        lifecycleScope.launch(Dispatchers.IO) {
+            try {
+                val url = java.net.URL(
+                    "https://api.modrinth.com" +
+                    "/v2/search?limit=1&facets=" +
+                    "%5B%5B%22project_type" +
+                    "%3Amod%22%5D%5D")
+                val conn =
+                    url.openConnection()
+                    as java.net.HttpURLConnection
+                conn.setRequestProperty(
+                    "User-Agent",
+                    "ModulaMobile/1.0")
+                conn.connectTimeout = 15000
+                conn.readTimeout = 15000
+                val responseCode = conn.responseCode
+                Log.d("MODULA_TEST",
+                    "Modrinth HTTP: $responseCode")
+                conn.disconnect()
+            } catch (e: Exception) {
+                Log.e("MODULA_TEST",
+                    "Modrinth failed: ${e.message}")
+            }
+
+            try {
+                val url = java.net.URL(
+                    "https://launchermeta.mojang.com" +
+                    "/mc/game/" +
+                    "version_manifest_v2.json")
+                val conn =
+                    url.openConnection()
+                    as java.net.HttpURLConnection
+                conn.connectTimeout = 15000
+                conn.readTimeout = 15000
+                val responseCode = conn.responseCode
+                Log.d("MODULA_TEST",
+                    "Mojang HTTP: $responseCode")
+                conn.disconnect()
+            } catch (e: Exception) {
+                Log.e("MODULA_TEST",
+                    "Mojang failed: ${e.message}")
+            }
+        }
+
+        testApis()
+
+        //处理外部导入
+        val isImporting = handleImportIfNeeded(intent)
 
         //检查更新
         if (!isImporting && launcherUpgradeViewModel.operation == LauncherUpgradeOperation.None) {
             lifecycleScope.launch {
                 launcherUpgradeViewModel.checkOnAppStart()
             }
+            updateViewModel.checkSilently()
         }
 
         //错误信息展示
@@ -212,11 +272,11 @@ class MainActivity : BaseAppCompatActivity() {
             eventViewModel.events.collect { event ->
                 when (event) {
                     is EventViewModel.Event.Key.StartKeyCapture -> {
-                        Logger.info("CollectEvent", "Start key capture!")
+                        lInfo("Start key capture!")
                         isCaptureKey = true
                     }
                     is EventViewModel.Event.Key.StopKeyCapture -> {
-                        Logger.info("CollectEvent", "Stop key capture!")
+                        lInfo("Stop key capture!")
                         isCaptureKey = false
                     }
                     is EventViewModel.Event.OpenLink -> {
@@ -273,13 +333,6 @@ class MainActivity : BaseAppCompatActivity() {
                     is EventViewModel.Event.VulkanCheck -> {
                         checkVulkan()
                     }
-                    is EventViewModel.Event.ShowToast -> {
-                        Toast.makeText(
-                            this@MainActivity,
-                            event.text.toAndroidString(this@MainActivity),
-                            event.duration
-                        ).show()
-                    }
                     else -> {
                         //忽略
                     }
@@ -295,27 +348,55 @@ class MainActivity : BaseAppCompatActivity() {
         )
 
         setContent {
+            val themeSelection by settingsViewModel.themeSelection.collectAsState(initial = "DEFAULT")
+            val particleDensity by settingsViewModel.particleDensity.collectAsState(initial = 60)
+            val motionInterpolation by settingsViewModel.motionInterpolation.collectAsState(initial = 80)
+            val uiTransparency by settingsViewModel.uiTransparency.collectAsState(initial = 10)
+            val uiScaling by settingsViewModel.uiScaling.collectAsState(initial = 100)
+            val bloomEffects by settingsViewModel.bloomEffects.collectAsState(initial = true)
+            val dynamicShadows by settingsViewModel.dynamicShadows.collectAsState(initial = true)
+            val performanceMode by settingsViewModel.sustainedPerformance.collectAsState(initial = false)
+
+            val currentColors = com.modulamobile.ui.theme.ThemeManager.getColors(themeSelection)
+            val currentUiSettings = com.modulamobile.ui.state.ModulaUiSettings(
+                particleDensity = particleDensity / 100f,
+                motionInterpolation = motionInterpolation / 100f,
+                uiTransparency = uiTransparency / 100f,
+                uiScaling = uiScaling / 100f,
+                bloomEnabled = bloomEffects,
+                shadowsEnabled = dynamicShadows,
+                performanceMode = performanceMode
+            )
+
             ZalithLauncherTheme(
                 backgroundViewModel = backgroundViewModel,
                 festivals = festivals
             ) {
-                ObserveFullScreenSetting(AllSettings.launcherFullScreen.state)
                 Box {
                     Background(
                         modifier = Modifier.fillMaxSize(),
                         viewModel = backgroundViewModel
                     )
 
+                    val uiScaling = AllSettings.uiScaling.state
+                    val currentDensity = LocalDensity.current
+
                     CompositionLocalProvider(
-                        LocalHomePageViewModel provides homePageViewModel
+                        com.movtery.zalithlauncher.viewmodel.LocalBackgroundViewModel provides backgroundViewModel,
+                        com.movtery.zalithlauncher.viewmodel.LocalHomePageViewModel provides homePageViewModel,
+                        com.movtery.zalithlauncher.utils.festival.LocalFestivals provides festivals,
+                        LocalDensity provides Density(
+                            density = currentDensity.density * (uiScaling / 100f),
+                            fontScale = currentDensity.fontScale
+                        ),
+                        com.modulamobile.ui.theme.LocalModulaColors provides currentColors,
+                        com.modulamobile.ui.state.LocalUiSettings provides currentUiSettings
                     ) {
-                        MainScreen(
-                            screenBackStackModel = screenBackStackModel,
-                            eventViewModel = eventViewModel,
-                            modpackImportViewModel = modpackImportViewModel,
-                            submitError = {
-                                errorViewModel.showError(it)
-                            }
+                        val navController = androidx.navigation.compose.rememberNavController()
+                        com.movtery.zalithlauncher.ui.screens.MainScaffold(
+                            navController = navController,
+                            launchGameViewModel = launchGameViewModel,
+                            errorViewModel = errorViewModel
                         )
                     }
 
@@ -325,31 +406,6 @@ class MainActivity : BaseAppCompatActivity() {
                         festivals = festivals
                     )
 
-                    //启动游戏操作流程
-                    LaunchGameOperation(
-                        activity = this@MainActivity,
-                        eventViewModel = eventViewModel,
-                        launchGameOperation = launchGameViewModel.launchGameOperation,
-                        updateOperation = { launchGameViewModel.updateOperation(it) },
-                        exitActivity = {
-                            this@MainActivity.finish()
-                        },
-                        waitForVulkanChecker = vulkanCheckerViewModel::waitForVulkanChecker,
-                        submitError = {
-                            errorViewModel.showError(it)
-                        },
-                        toAccountManageScreen = { menu ->
-                            screenBackStackModel.mainScreen.navigateTo(
-                                screenKey = NormalNavKey.AccountManager(menu)
-                            )
-                        },
-                        toVersionManageScreen = {
-                            screenBackStackModel.mainScreen.removeAndNavigateTo(
-                                remove = NestedNavKey.VersionSettings::class,
-                                screenKey = NormalNavKey.VersionsManager
-                            )
-                        }
-                    )
                 }
 
                 //显示赞助支持的小弹窗
@@ -479,6 +535,70 @@ class MainActivity : BaseAppCompatActivity() {
                         AllSettings.autoVulkanChecker.save(false)
                     }
                 )
+
+                // OTA Updates UI Elements
+                val updateState by updateViewModel.state.collectAsStateWithLifecycle()
+
+                Box(Modifier.fillMaxSize()) {
+                    // Non-mandatory banner removed as per user request
+                    /*
+                    if (updateState is UpdateState.Available && !(updateState as UpdateState.Available).info.mandatory) {
+                        Box(Modifier.align(androidx.compose.ui.Alignment.BottomCenter).padding(bottom = 64.dp)) {
+                            UpdateBanner(
+                                info = (updateState as UpdateState.Available).info,
+                                onUpdate = { updateViewModel.startDownload((updateState as UpdateState.Available).info) },
+                                onDismiss = { updateViewModel.skipVersion((updateState as UpdateState.Available).info.versionCode) }
+                            )
+                        }
+                    }
+                    */
+
+                    // Progress Sheet for non-mandatory (mandatory has it built-in)
+                    if (updateState is UpdateState.Downloading || updateState is UpdateState.Installing || updateState is UpdateState.ReadyToInstall || updateState is UpdateState.Failed) {
+                        val isMandatory = when (val s = updateState) {
+                            is UpdateState.Downloading -> s.info.mandatory
+                            is UpdateState.Installing -> s.info.mandatory
+                            is UpdateState.ReadyToInstall -> s.info.mandatory
+                            else -> false
+                        }
+
+                        if (!isMandatory) {
+                            Box(Modifier.align(androidx.compose.ui.Alignment.BottomCenter)) {
+                                val info = when (val s = updateState) {
+                                    is UpdateState.Downloading -> s.info
+                                    is UpdateState.Installing -> s.info
+                                    is UpdateState.ReadyToInstall -> s.info
+                                    else -> null
+                                }
+                                if (info != null) {
+                                    UpdateProgressSheet(
+                                        state = updateState,
+                                        info = info,
+                                        onInstall = { updateViewModel.install(it, this@MainActivity) },
+                                        onCancel = { updateViewModel.cancelDownload(info) },
+                                        onRetry = { updateViewModel.startDownload(info) }
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    // Mandatory Update Screen blocks the entire UI
+                    val mandatoryInfo = when (val s = updateState) {
+                        is UpdateState.Available -> if (s.info.mandatory) s.info else null
+                        is UpdateState.Downloading -> if (s.info.mandatory) s.info else null
+                        is UpdateState.Installing -> if (s.info.mandatory) s.info else null
+                        is UpdateState.ReadyToInstall -> if (s.info.mandatory) s.info else null
+                        else -> null
+                    }
+                    if (mandatoryInfo != null) {
+                        MandatoryUpdateScreen(
+                            info = mandatoryInfo,
+                            state = updateState,
+                            onUpdate = { updateViewModel.startDownload(mandatoryInfo) }
+                        )
+                    }
+                }
             }
         }
     }
@@ -486,10 +606,6 @@ class MainActivity : BaseAppCompatActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         handleImportIfNeeded(intent)
-        // 重载渲染器
-        Renderers.init(true)
-        // 重载插件
-        PluginLoader.loadAllPlugins(this, true)
     }
 
     /**
@@ -562,7 +678,7 @@ class MainActivity : BaseAppCompatActivity() {
                                 this@MainActivity.openLink(trimmed)
                             }
                         } else {
-                            Logger.warning("HomePage", "Blocked unsafe URL from homepage event: $trimmed")
+                            lWarning("Blocked unsafe URL from homepage event: $trimmed")
                         }
                     }
                 }
@@ -577,7 +693,7 @@ class MainActivity : BaseAppCompatActivity() {
                                 parms[1].trim()
                             } else null
                         }.onFailure { e ->
-                            Logger.warning("HomePage", "Failed to parse quick join server parameters: $raw", e)
+                            lWarning("Failed to parse quick join server parameters: $raw", e)
                         }.getOrNull()
                     }
                     if (!serverIp.isNullOrEmpty()) {
@@ -585,7 +701,7 @@ class MainActivity : BaseAppCompatActivity() {
                         if (serverIp.none { it.code < 32 }) {
                             launchGameViewModel.tryPlayServer(serverIp)
                         } else {
-                            Logger.warning("HomePage", "Invalid server address from homepage event: $serverIp")
+                            lWarning("Invalid server address from homepage event: $serverIp")
                         }
                     } else {
                         launchGameViewModel.tryLaunch()
@@ -619,11 +735,11 @@ class MainActivity : BaseAppCompatActivity() {
                     }
                 }
                 else -> {
-                    Logger.warning("HomePage", "Unknown homepage event: key=$key, data=$data")
+                    lWarning("Unknown homepage event: key=$key, data=$data")
                 }
             }
         }.onFailure { e ->
-            Logger.warning("HomePage", "Failed to handle homepage event: key=$key, data=$data", e)
+            lWarning("Failed to handle homepage event: key=$key, data=$data", e)
         }
     }
 
@@ -670,7 +786,7 @@ class MainActivity : BaseAppCompatActivity() {
                 }
             }
 
-            builder.showThemed()
+            builder.create().show()
         }
     }
 
@@ -679,8 +795,8 @@ class MainActivity : BaseAppCompatActivity() {
      */
     private fun importControlFiles(uris: List<Uri>) {
         fun showError(
-            title: AndroidStringText = androidText(R.string.control_manage_import_failed),
-            message: AndroidStringText
+            title: String = getString(R.string.control_manage_import_failed),
+            message: String
         ) {
             errorViewModel.showError(
                 ErrorViewModel.ThrowableMessage(
@@ -696,22 +812,19 @@ class MainActivity : BaseAppCompatActivity() {
                     var done = false
                     uris.forEach { uri ->
                         val inputStream = contentResolver.openInputStream(uri) ?: run {
-                            showError(message = androidText(R.string.multirt_runtime_import_failed_input_stream))
+                            showError(message = getString(R.string.multirt_runtime_import_failed_input_stream))
                             return@forEach
                         }
                         ControlManager.importControl(
                             inputStream = inputStream,
                             onSerializationError = {
                                 showError(
-                                    message = buildAppendedText {
-                                        append(R.string.control_manage_import_failed_to_parse)
-                                        append("\n")
-                                        append(it.getMessageOrToString())
-                                    }
+                                    message = getString(R.string.control_manage_import_failed_to_parse) + "\n" +
+                                            it.getMessageOrToString()
                                 )
                             },
                             catchedError =  {
-                                showError(message = androidText(it.getMessageOrToString()))
+                                showError(message = it.getMessageOrToString())
                             },
                             onFinished = {
                                 done = true
@@ -805,10 +918,56 @@ class MainActivity : BaseAppCompatActivity() {
     @SuppressLint("RestrictedApi")
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
         if (isCaptureKey) {
-            Logger.info(TAG, "Capture key event: $event")
+            lInfo("Capture key event: $event")
             eventViewModel.sendEvent(EventViewModel.Event.Key.OnKeyDown(event))
             return true
         }
         return super.dispatchKeyEvent(event)
+    }
+    // TEMPORARY — remove after testing
+    private fun testApis() {
+        lifecycleScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+            // Test Mojang
+            try {
+                val url = java.net.URL(
+                    "https://launchermeta.mojang.com" +
+                    "/mc/game/" +
+                    "version_manifest_v2.json")
+                val conn = url.openConnection()
+                    as java.net.HttpURLConnection
+                conn.connectTimeout = 10000
+                conn.readTimeout = 10000
+                val code = conn.responseCode
+                android.util.Log.d("ModulaTest",
+                    "Mojang API: HTTP $code")
+                conn.disconnect()
+            } catch (e: Exception) {
+                android.util.Log.e("ModulaTest",
+                    "Mojang FAILED: ${e.message}")
+            }
+
+            // Test Modrinth
+            try {
+                val url = java.net.URL(
+                    "https://api.modrinth.com" +
+                    "/v2/search?limit=1&facets=" +
+                    "%5B%5B%22project_type%3Amod" +
+                    "%22%5D%5D")
+                val conn = url.openConnection()
+                    as java.net.HttpURLConnection
+                conn.setRequestProperty(
+                    "User-Agent",
+                    "ModulaMobile/1.0")
+                conn.connectTimeout = 10000
+                conn.readTimeout = 10000
+                val code = conn.responseCode
+                android.util.Log.d("ModulaTest",
+                    "Modrinth API: HTTP $code")
+                conn.disconnect()
+            } catch (e: Exception) {
+                android.util.Log.e("ModulaTest",
+                    "Modrinth FAILED: ${e.message}")
+            }
+        }
     }
 }

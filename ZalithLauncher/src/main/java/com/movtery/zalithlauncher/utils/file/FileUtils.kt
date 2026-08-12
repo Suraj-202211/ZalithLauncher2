@@ -23,7 +23,8 @@ import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
 import androidx.core.content.FileProvider
-import com.movtery.zalithlauncher.utils.logging.Logger
+import com.movtery.zalithlauncher.utils.logging.Logger.lError
+import com.movtery.zalithlauncher.utils.logging.Logger.lInfo
 import com.movtery.zalithlauncher.utils.string.naturalCompare
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ensureActive
@@ -49,8 +50,6 @@ import java.util.zip.ZipFile
 import java.util.zip.ZipOutputStream
 import org.apache.commons.compress.archivers.zip.ZipFile as CompressZipFile
 
-private const val TAG = "FileUtils"
-
 fun File.ifExists() = this.takeIf { it.exists() }
 
 fun compareSHA1(file: File, sourceSHA: String?, default: Boolean = false): Boolean {
@@ -61,7 +60,7 @@ fun compareSHA1(file: File, sourceSHA: String?, default: Boolean = false): Boole
             String(Hex.encodeHex(DigestUtils.sha1(fis)))
         }
     }.getOrElse { e ->
-        Logger.info(TAG, "An exception occurred while reading, returning the default value.", e)
+        lInfo("An exception occurred while reading, returning the default value.", e)
         return default
     }
 
@@ -481,9 +480,9 @@ suspend fun copyDirectoryContents(
         try {
             targetFile.ensureParentDirectory()
             file.copyTo(targetFile, overwrite = true)
-            Logger.info(TAG, "copied: ${file.path} -> ${targetFile.path}")
+            lInfo("copied: ${file.path} -> ${targetFile.path}")
         } catch (e: IOException) {
-            Logger.error(TAG, "Failed to copy: ${file.path} -> ${targetFile.path}", e)
+            lError("Failed to copy: ${file.path} -> ${targetFile.path}", e)
         }
         onProgress?.invoke((index + 1).toFloat() / fileCount)
     }

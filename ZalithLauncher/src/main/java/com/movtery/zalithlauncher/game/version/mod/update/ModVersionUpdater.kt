@@ -23,9 +23,8 @@ import com.movtery.zalithlauncher.coroutine.Task
 import com.movtery.zalithlauncher.game.download.assets.platform.PlatformVersion
 import com.movtery.zalithlauncher.game.download.assets.platform.mcim.mapMCIMMirrorUrls
 import com.movtery.zalithlauncher.game.version.download.DownloadFailedException
-import com.movtery.zalithlauncher.ui.androidText
 import com.movtery.zalithlauncher.utils.file.formatFileSize
-import com.movtery.zalithlauncher.utils.logging.Logger
+import com.movtery.zalithlauncher.utils.logging.Logger.lError
 import com.movtery.zalithlauncher.utils.network.downloadFromMirrorListSuspend
 import com.movtery.zalithlauncher.utils.network.withSpeedReport
 import kotlinx.coroutines.CancellationException
@@ -42,9 +41,6 @@ import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.util.concurrent.atomic.AtomicLong
-import kotlin.time.Duration.Companion.milliseconds
-
-private const val TAG = "ModVersionUpdater"
 
 class ModVersionUpdater(
     val mods: List<PlatformVersion>,
@@ -75,8 +71,7 @@ class ModVersionUpdater(
         }
         if (downloadFailedTasks.isNotEmpty()) throw DownloadFailedException()
         //清除任务信息
-        task.updateProgress(1f)
-        task.updateMessage(null)
+        task.updateProgress(1f, null)
     }
 
     private suspend fun downloadAll(
@@ -111,7 +106,7 @@ class ModVersionUpdater(
                             downloadedFileCount.incrementAndGet()
                         }.onFailure { e ->
                             if (e is CancellationException) return@onFailure
-                            Logger.error(TAG, "Download failed: ${outputFile.absolutePath}, urls: ${urls.joinToString(", ")}", e)
+                            lError("Download failed: ${outputFile.absolutePath}, urls: ${urls.joinToString(", ")}", e)
                             downloadFailedTasks.add(newVersion)
                         }
                     }
@@ -123,16 +118,12 @@ class ModVersionUpdater(
                     ensureActive()
                     val currentFileCount = downloadedFileCount.get()
                     task.updateProgress(
-                        (currentFileCount.toFloat() / totalFileCount.toFloat()).coerceIn(0f, 1f)
+                        (currentFileCount.toFloat() / totalFileCount.toFloat()).coerceIn(0f, 1f),
+                        taskMessageRes,
+                        downloadedFileCount.get(), totalFileCount,
+                        formatFileSize(downloadedFileSize.get())
                     )
-                    task.updateMessage(
-                        androidText(
-                            taskMessageRes,
-                            downloadedFileCount.get(), totalFileCount,
-                            formatFileSize(downloadedFileSize.get())
-                        )
-                    )
-                    delay(100L.milliseconds)
+                    delay(100)
                 }
             }
 

@@ -34,14 +34,12 @@ import com.movtery.zalithlauncher.game.download.assets.utils.ModTranslations
 import com.movtery.zalithlauncher.game.download.assets.utils.getMcMod
 import com.movtery.zalithlauncher.game.download.assets.utils.getTranslations
 import com.movtery.zalithlauncher.utils.file.calculateFileSha1
-import com.movtery.zalithlauncher.utils.logging.Logger
+import com.movtery.zalithlauncher.utils.logging.Logger.lWarning
 import com.tencent.mmkv.MMKV
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
-
-private const val TAG = "RemoteMod"
 
 class RemoteMod(
     val localMod: LocalMod
@@ -81,11 +79,6 @@ class RemoteMod(
      */
     suspend fun load(loadFromCache: Boolean) {
         if (loadFromCache && isLoaded) return
-
-        if (!localMod.checkRemote) {
-            isLoaded = true
-            return
-        }
 
         if (!loadFromCache) {
             remoteFile = null
@@ -154,7 +147,7 @@ class RemoteMod(
                     isLoaded = true
                 }.onFailure { e ->
                     if (e is CancellationException) return@onFailure
-                    Logger.warning(TAG, "Failed to load project info for mod: ${file.name}", e)
+                    lWarning("Failed to load project info for mod: ${file.name}", e)
                 }
             }
         } finally {

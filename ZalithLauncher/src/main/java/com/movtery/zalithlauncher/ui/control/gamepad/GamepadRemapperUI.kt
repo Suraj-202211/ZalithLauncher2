@@ -34,6 +34,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.FilledTonalButton
@@ -65,15 +66,11 @@ import com.movtery.zalithlauncher.R
 import com.movtery.zalithlauncher.ui.components.MarqueeText
 import com.movtery.zalithlauncher.ui.components.SimpleAlertDialog
 import com.movtery.zalithlauncher.ui.components.fadeEdge
-import com.movtery.zalithlauncher.ui.components.verticalScrollWithBar
 import com.movtery.zalithlauncher.ui.theme.cardColor
 import com.movtery.zalithlauncher.ui.theme.onCardColor
-import com.movtery.zalithlauncher.utils.logging.Logger
+import com.movtery.zalithlauncher.utils.logging.Logger.lInfo
 import com.movtery.zalithlauncher.viewmodel.GamepadRemapperViewModel
 import kotlinx.coroutines.delay
-import kotlin.time.Duration.Companion.milliseconds
-
-private const val TAG = "GamepadRemapper"
 
 /**
  * 构建出需要重新映射的所有步骤
@@ -170,12 +167,12 @@ fun GamepadRemapperDialog(
                     val keyLog = keyMapping.entries.joinToString("\n") { entry ->
                         "Key: ${KeyEvent.keyCodeToString(entry.key)} (${entry.key}), Mapping to: ${KeyEvent.keyCodeToString(entry.value)} (${entry.value})"
                     }
-                    Logger.info(TAG, "=============================")
-                    Logger.info(TAG, "Gamepad Motion Remapping:")
-                    Logger.info(TAG, motionLog)
-                    Logger.info(TAG, "=============================")
-                    Logger.info(TAG, "Gamepad Key Remapping:")
-                    Logger.info(TAG, keyLog)
+                    lInfo("=============================")
+                    lInfo("Gamepad Motion Remapping:")
+                    lInfo(motionLog)
+                    lInfo("=============================")
+                    lInfo("Gamepad Key Remapping:")
+                    lInfo(keyLog)
 
                     remapperViewModel.applyMapping(deviceName, motionMapping, keyMapping)
                     remapperViewModel.save()
@@ -196,7 +193,7 @@ fun GamepadRemapperDialog(
             //进度变更之后，需要固定等待一段时间重新开始监听事件
             LaunchedEffect(progress) {
                 isListening = false
-                delay(700L.milliseconds)
+                delay(700L)
                 isListening = true
             }
 
@@ -380,7 +377,7 @@ fun GamepadRemapperDialog(
                     Column(
                         modifier = Modifier
                             .fadeEdge(state = scrollState)
-                            .verticalScrollWithBar(state = scrollState),
+                            .verticalScroll(state = scrollState),
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         Text(text = text)

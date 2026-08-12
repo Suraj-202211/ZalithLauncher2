@@ -26,12 +26,9 @@ import com.movtery.zalithlauncher.game.account.Account
 import com.movtery.zalithlauncher.game.account.AccountsManager
 import com.movtery.zalithlauncher.game.account.auth_server.data.AuthServer
 import com.movtery.zalithlauncher.game.account.auth_server.models.AuthResult
-import com.movtery.zalithlauncher.ui.androidText
-import com.movtery.zalithlauncher.utils.logging.Logger
+import com.movtery.zalithlauncher.utils.logging.Logger.lError
 import kotlinx.coroutines.Dispatchers
 import java.util.Objects
-
-private const val TAG = "AuthServerHelper"
 
 /**
  * 帮助登录外置账号（创建新的外置账号、仅登录当前外置账号）
@@ -80,15 +77,11 @@ class AuthServerHelper(
                 )
             },
             onError = { e ->
-                Logger.error(TAG, "An exception was encountered while performing the login task.", e)
+                lError("An exception was encountered while performing the login task.", e)
                 onFailed(e)
             },
             onFinally = onFinally
-        ).apply {
-            updateMessage(
-                androidText(R.string.account_logging_in, loggingString)
-            )
-        }
+        ).apply { updateMessage(R.string.account_logging_in, loggingString) }
     }
 
     private fun updateAccountInfo(
@@ -192,14 +185,10 @@ class AuthServerHelper(
                 )
             },
             onError = { e ->
-                Logger.error(TAG, "An exception was encountered while performing the refresh task.", e)
+                lError("An exception was encountered while performing the refresh task.", e)
                 onFailed(e)
             }
-        ).apply {
-            updateMessage(
-                androidText(R.string.account_other_login_select_role_logging, account.username)
-            )
-        }
+        ).apply { updateMessage(R.string.account_other_login_select_role_logging, account.username) }
 
         TaskSystem.submitTask(task)
     }

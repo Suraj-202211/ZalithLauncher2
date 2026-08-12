@@ -30,7 +30,7 @@ import com.movtery.zalithlauncher.context.copyAssetFile
 import com.movtery.zalithlauncher.path.PathManager
 import com.movtery.zalithlauncher.setting.AllSettings
 import com.movtery.zalithlauncher.utils.file.readString
-import com.movtery.zalithlauncher.utils.logging.Logger
+import com.movtery.zalithlauncher.utils.logging.Logger.lWarning
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -43,8 +43,6 @@ import kotlinx.serialization.SerializationException
 import org.apache.commons.io.FileUtils
 import java.io.File
 import java.io.InputStream
-
-private const val TAG = "ControlManager"
 
 /**
  * 控制布局管理者
@@ -104,10 +102,10 @@ object ControlManager {
                     runCatching {
                         loadLayoutFromFileUncheck(file)
                     }.onFailure { e ->
-                        Logger.warning(TAG, "Failed to load control layout! file = $file", e)
+                        lWarning("Failed to load control layout! file = $file", e)
                     }.getOrNull() ?: return@mapNotNull null
                 } catch (e: Exception) {
-                    Logger.warning(TAG, "Failed to load control layout! file = $file", e)
+                    lWarning("Failed to load control layout! file = $file", e)
                     return@mapNotNull null
                 }
 
@@ -157,7 +155,7 @@ object ControlManager {
             val file = getNewRandomFile()
             context.copyAssetFile(fileName = "default_layout.json", output = file, overwrite = false)
         } catch (e: Exception) {
-            Logger.warning(TAG, "Failed to unpack default control layout", e)
+            lWarning("Failed to unpack default control layout", e)
         }
     }
 

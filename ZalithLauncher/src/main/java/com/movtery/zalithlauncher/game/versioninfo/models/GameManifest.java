@@ -112,10 +112,6 @@ public class GameManifest {
         }
     }
 
-    public AssetIndex getRawAssetIndex() {
-        return assetIndex;
-    }
-
     public void setAssetIndex(AssetIndex assetIndex) {
         this.assetIndex = assetIndex;
     }

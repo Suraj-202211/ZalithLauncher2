@@ -348,14 +348,20 @@ class CurseForgeData(
     }
 
     override fun platformCategories(classes: PlatformClasses): List<PlatformFilterCode>? {
+        fun map(string: String): PlatformFilterCode? {
+            val mapValues = when (classes) {
+                PlatformClasses.MOD -> CurseForgeModCategory.entries
+                PlatformClasses.MOD_PACK -> CurseForgeModpackCategory.entries
+                PlatformClasses.RESOURCE_PACK -> CurseForgeResourcePackCategory.entries
+                PlatformClasses.SAVES -> CurseForgeSavesCategory.entries
+                PlatformClasses.SHADERS -> CurseForgeShadersCategory.entries
+            }
+            return mapValues.find { it.describe() == string }
+        }
+
         return categories.mapNotNull {
-            it.id.toString().mapCurseForgeCategory(classes)
+            map(it.id.toString())
         }.toSet().takeIf { it.isNotEmpty() }
             ?.sortedWith { o1, o2 -> o1.index() - o2.index() }
     }
 }
-
-/**
- * @return 该模组是否可见
- */
-fun CurseForgeData.isApproved(): Boolean = this.status == 4

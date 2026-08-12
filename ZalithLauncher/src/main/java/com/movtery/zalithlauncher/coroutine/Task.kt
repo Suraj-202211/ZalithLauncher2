@@ -18,13 +18,14 @@
 
 package com.movtery.zalithlauncher.coroutine
 
-import com.movtery.zalithlauncher.ui.AndroidStringText
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.update
 import java.util.UUID
 
 class Task private constructor(
@@ -35,61 +36,76 @@ class Task private constructor(
     val onFinally: () -> Unit = {},
     val onCancel: () -> Unit = {}
 ) {
-    private val _stage = MutableStateFlow(TaskStage.PREPARING)
     /**
      * 任务阶段（TaskSystem可能用不到，主要服务于GameInstaller）
      */
-    val stage = _stage.asStateFlow()
+    var taskState by mutableStateOf(TaskState.PREPARING)
 
-    private val _progress = MutableStateFlow(-1f)
-    /** 任务进度状态 */
-    val progress = _progress.asStateFlow()
+    var currentProgress by mutableFloatStateOf(-1f)
+        private set
+    var currentMessageRes by mutableStateOf<Int?>(null)
+        private set
+    var currentMessageArgs by mutableStateOf<Array<out Any>?>(null)
+        private set
 
-    private val _message = MutableStateFlow<AndroidStringText?>(null)
-    /** 任务消息状态 */
-    val message = _message.asStateFlow()
-
-    private val _rateBytesPerSec = MutableStateFlow<Long?>(null)
     /** 当前速率 Bytes */
-    val rateBytesPerSec = _rateBytesPerSec.asStateFlow()
-
-    /**
-     * 更新任务阶段
-     */
-    fun updateStage(state: TaskStage) {
-        this._stage.update { state }
-    }
+    var currentRateBytesPerSec by mutableLongStateOf(-1L)
+        private set
 
     /**
      * 更新进度，自动处理 NaN、isInfinite 的这种错误情况
      * @param percentage 进度百分比，-1f代表进度不确定
      */
     fun updateProgress(percentage: Float) {
-        this._progress.update {
-            (percentage.takeIf { it.isFinite() } ?: 0f).coerceIn(-1f, 1f)
-        }
+        this.currentProgress = (percentage.takeIf { it.isFinite() } ?: 0f).coerceIn(-1f, 1f)
+    }
+
+    /**
+     * 更新进度、任务描述消息
+     * @param percentage 进度百分比，-1f代表进度不确定，自动处理 NaN、isInfinite 的这种错误情况
+     * @param message 任务描述消息
+     */
+    fun updateProgress(percentage: Float, message: Int?) {
+        this.updateProgress(percentage = percentage)
+        this.updateMessage(message = message)
+    }
+
+    /**
+     * 更新进度、任务描述消息
+     * @param percentage 进度百分比，-1f代表进度不确定，自动处理 NaN、isInfinite 的这种错误情况
+     * @param message 任务描述消息
+     * @param args 任务描述信息格式化内容
+     */
+    fun updateProgress(percentage: Float, message: Int?, vararg args: Any) {
+        this.updateProgress(percentage = percentage)
+        this.updateMessage(message = message, args = args)
     }
 
     /**
      * 更新任务描述消息
-     * @param text 任务描述消息
+     * @param message 任务描述消息
      */
-    fun updateMessage(text: AndroidStringText?) {
-        this._message.update { text }
+    fun updateMessage(message: Int?) {
+        this.currentMessageRes = message
+        this.currentMessageArgs = null
     }
 
     /**
-     * 更新任务比特速率
+     * 更新任务描述消息
+     * @param message 任务描述消息
+     * @param args 任务描述信息格式化内容
      */
+    fun updateMessage(message: Int?, vararg args: Any) {
+        this.currentMessageRes = message
+        this.currentMessageArgs = args
+    }
+
     fun updateSpeed(bytes: Long) {
-        this._rateBytesPerSec.update { bytes.takeIf { it >= 0L } }
+        this.currentRateBytesPerSec = bytes
     }
 
-    /**
-     * 清除任务比特速率
-     */
     fun clearSpeed() {
-        this._rateBytesPerSec.update { null }
+        this.currentRateBytesPerSec = -1L
     }
 
     override fun equals(other: Any?): Boolean = other is Task && other.id == this.id

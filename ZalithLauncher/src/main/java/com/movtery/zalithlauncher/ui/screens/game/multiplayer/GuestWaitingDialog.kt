@@ -18,17 +18,17 @@
 
 package com.movtery.zalithlauncher.ui.screens.game.multiplayer
 
+import android.widget.Toast
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import com.movtery.zalithlauncher.R
 import com.movtery.zalithlauncher.terracotta.Terracotta
-import com.movtery.zalithlauncher.ui.AndroidStringText
-import com.movtery.zalithlauncher.ui.androidText
 import com.movtery.zalithlauncher.ui.components.SimpleEditDialog
 import com.movtery.zalithlauncher.utils.string.isEmptyOrBlank
 import net.burningtnt.terracotta.TerracottaAndroidAPI
@@ -44,8 +44,7 @@ sealed interface GuestWaitingOperation {
 fun GuestWaitingOperation(
     operation: GuestWaitingOperation,
     onChange: (GuestWaitingOperation) -> Unit,
-    onPositive: (roomCode: String) -> Unit,
-    onShowToast: (AndroidStringText) -> Unit
+    onPositive: (roomCode: String) -> Unit
 ) {
     when (operation) {
         is GuestWaitingOperation.None -> {}
@@ -54,8 +53,7 @@ fun GuestWaitingOperation(
                 onPositive = onPositive,
                 onDismiss = {
                     onChange(GuestWaitingOperation.None)
-                },
-                onShowToast = onShowToast
+                }
             )
         }
     }
@@ -67,14 +65,18 @@ fun GuestWaitingOperation(
 @Composable
 private fun InviteCodeInputDialog(
     onPositive: (roomCode: String) -> Unit,
-    onDismiss: () -> Unit,
-    onShowToast: (AndroidStringText) -> Unit
+    onDismiss: () -> Unit
 ) {
+    val terracottaLegacyText = stringResource(R.string.terracotta_status_waiting_guest_prompt_terracotta_legacy)
+    val pcl2ceLegacyText = stringResource(R.string.terracotta_status_waiting_guest_prompt_pcl2ce)
+    val scaffoldingText = stringResource(R.string.terracotta_status_waiting_guest_prompt_scaffolding)
+    val codeInvalid = stringResource(R.string.terracotta_status_waiting_guest_prompt_invalid)
+
     var code by remember { mutableStateOf("") }
 
     /** 验证不通过时 */
     var isError by remember { mutableStateOf(false) }
-    val supportingText: AndroidStringText? = remember(code) {
+    val supportingText: String? = remember(code) {
         if (code.isEmpty()) {
             //还未填写内容
             isError = false
@@ -83,16 +85,17 @@ private fun InviteCodeInputDialog(
 
         val type = Terracotta.parseRoomCode(code)
         when (type) {
-            TerracottaAndroidAPI.RoomType.TERRACOTTA_LEGACY -> androidText(R.string.terracotta_status_waiting_guest_prompt_terracotta_legacy)
-            TerracottaAndroidAPI.RoomType.PCL2CE -> androidText(R.string.terracotta_status_waiting_guest_prompt_pcl2ce)
-            TerracottaAndroidAPI.RoomType.SCAFFOLDING -> androidText(R.string.terracotta_status_waiting_guest_prompt_scaffolding)
+            TerracottaAndroidAPI.RoomType.TERRACOTTA_LEGACY -> terracottaLegacyText
+            TerracottaAndroidAPI.RoomType.PCL2CE -> pcl2ceLegacyText
+            TerracottaAndroidAPI.RoomType.SCAFFOLDING -> scaffoldingText
             else -> null
         }.also { text ->
             //根据是否检测出对应格式判断
             isError = text == null
-        } ?: androidText(R.string.terracotta_status_waiting_guest_prompt_invalid)
+        } ?: codeInvalid
     }
 
+    val context = LocalContext.current
     SimpleEditDialog(
         title = stringResource(R.string.terracotta_status_waiting_guest_prompt_title),
         value = code,
@@ -100,16 +103,16 @@ private fun InviteCodeInputDialog(
             code = value
         },
         label = (@Composable { Text(text = "U/XXXX-XXXX-XXXX-XXXX") }).takeIf { code.isEmpty() },
-        supportingText = supportingText?.let { text ->
+        supportingText = supportingText?.let { string ->
             {
-                AndroidStringText(text = text)
+                Text(text = string)
             }
         },
         singleLine = true,
         isError = isError,
         onConfirm = {
             if (isError || code.isEmptyOrBlank() || Terracotta.parseRoomCode(code) == null) {
-                onShowToast(androidText(R.string.terracotta_status_waiting_guest_prompt_invalid))
+                Toast.makeText(context, codeInvalid, Toast.LENGTH_SHORT).show()
             } else {
                 onPositive(code)
                 onDismiss()
@@ -118,3 +121,4 @@ private fun InviteCodeInputDialog(
         onDismissRequest = onDismiss
     )
 }
+

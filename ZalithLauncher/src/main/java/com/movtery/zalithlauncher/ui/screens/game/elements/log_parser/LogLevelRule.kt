@@ -55,3 +55,4 @@ val WARN = LogLevelRule(
     textColor = Color.White,
     backgroundColor = Color(0xFF656E76)
 )
+

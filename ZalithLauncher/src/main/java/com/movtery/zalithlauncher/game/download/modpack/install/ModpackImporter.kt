@@ -32,9 +32,11 @@ import com.movtery.zalithlauncher.game.path.GamePathManager
 import com.movtery.zalithlauncher.game.version.installed.VersionFolders
 import com.movtery.zalithlauncher.game.version.installed.VersionsManager
 import com.movtery.zalithlauncher.path.PathManager
-import com.movtery.zalithlauncher.ui.androidText
 import com.movtery.zalithlauncher.utils.file.extractFromZip
-import com.movtery.zalithlauncher.utils.logging.Logger
+import com.movtery.zalithlauncher.utils.logging.Logger.lDebug
+import com.movtery.zalithlauncher.utils.logging.Logger.lError
+import com.movtery.zalithlauncher.utils.logging.Logger.lInfo
+import com.movtery.zalithlauncher.utils.logging.Logger.lWarning
 import com.movtery.zalithlauncher.utils.network.isUsingMobileData
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
@@ -46,8 +48,6 @@ import org.apache.commons.io.FileUtils
 import java.io.File
 import org.apache.commons.compress.archivers.zip.ZipFile as ApacheZipFile
 import java.util.zip.ZipFile as JDKZipFile
-
-private const val TAG = "ModpackImporter"
 
 /**
  * 本地整合包导入器
@@ -123,7 +123,7 @@ class ModpackImporter(
                 //清除上一次安装的缓存（如果有的话，可能会影响这次的安装结果）
                 addTask(
                     id = "ImportModpack.Cleanup",
-                    title = androidText(R.string.download_install_clear_temp),
+                    title = context.getString(R.string.download_install_clear_temp),
                     icon = R.drawable.ic_auto_delete_outlined
                 ) { _ ->
                     GamePathManager.waitForRefresh()
@@ -140,7 +140,7 @@ class ModpackImporter(
                 //先导入文件
                 addTask(
                     id = "ImportModpack.ImportFile",
-                    title = androidText(R.string.import_modpack_task_unpack),
+                    title = context.getString(R.string.import_modpack_task_unpack),
                     dispatcher = Dispatchers.IO,
                     icon = R.drawable.ic_unarchive_outlined
                 ) { task ->
@@ -153,7 +153,7 @@ class ModpackImporter(
                         }
                     } catch (e: Exception) {
                         if (e is CancellationException) throw e
-                        Logger.warning(TAG, "JDK ZipFile failed to unpack, fallback to Apache ZipFile.", e)
+                        lWarning("JDK ZipFile failed to unpack, fallback to Apache ZipFile.", e)
                         try {
                             ApacheZipFile.builder().setFile(installerFile).get().use { zip ->
                                 zip.extractFromZip("", packDir)
@@ -162,7 +162,7 @@ class ModpackImporter(
                             if (e is CancellationException) throw e
                             //如果兜底解压也失败了，则说明这可能不是一个压缩包
                             //或者压缩包已损坏，抛出不支持的异常终止任务流
-                            Logger.error(TAG, "Unable to extract the installer file. Is it really a compressed archive?", e)
+                            lError("Unable to extract the installer file. Is it really a compressed archive?", e)
                             throw PackNotSupportedException(
                                 reason = UnsupportedPackReason.CorruptedArchive
                             )
@@ -182,7 +182,7 @@ class ModpackImporter(
                 //解析整合包
                 addTask(
                     id = "ImportModpack.ParsePack",
-                    title = androidText(R.string.import_modpack_task_parse),
+                    title = context.getString(R.string.import_modpack_task_parse),
                     icon = R.drawable.ic_build_outlined
                 ) { task ->
                     task.updateProgress(-1f)
@@ -195,15 +195,15 @@ class ModpackImporter(
                             val result = runCatching {
                                 parser.parse(packFolder = packDir)
                             }.onFailure { th ->
-                                Logger.debug(TAG, "${parser.getIdentifier()} parser does not recognize this format", th)
+                                lDebug("${parser.getIdentifier()} parser does not recognize this format", th)
                             }.getOrNull()
 
                             if (result != null) {
                                 //成功识别到这个整合包格式
-                                Logger.info(TAG, "Successfully detected the modpack format: ${result.platform.identifier}")
+                                lInfo("Successfully detected the modpack format: ${result.platform.identifier}")
                                 return@run result
                             } else {
-                                Logger.debug(TAG, "Skipped the ${parser.getIdentifier()} parser")
+                                lDebug("Skipped the ${parser.getIdentifier()} parser")
                             }
                         }
                         //整合包不受支持，或格式有误未能匹配
@@ -236,7 +236,7 @@ class ModpackImporter(
     private suspend fun clearTempModPackDir() = withContext(Dispatchers.IO) {
         PathManager.DIR_CACHE_MODPACK_DOWNLOADER.takeIf { it.exists() }?.let { folder ->
             FileUtils.deleteQuietly(folder)
-            Logger.info(TAG, "Temporary modpack directory cleared.")
+            lInfo("Temporary modpack directory cleared.")
         }
     }
 
@@ -249,7 +249,7 @@ class ModpackImporter(
 
     private fun File.createDirAndLog(): File {
         this.mkdirs()
-        Logger.debug(TAG, "Created directory: $this")
+        lDebug("Created directory: $this")
         return this
     }
 }

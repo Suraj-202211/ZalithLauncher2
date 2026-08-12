@@ -28,6 +28,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Text
@@ -50,7 +51,6 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.ui.NavDisplay
 import com.google.gson.JsonSyntaxException
-import com.movtery.zalithlauncher.BuildKeys
 import com.movtery.zalithlauncher.R
 import com.movtery.zalithlauncher.game.version.download.DownloadFailedException
 import com.movtery.zalithlauncher.game.version.export.ExportInfo
@@ -61,11 +61,11 @@ import com.movtery.zalithlauncher.game.version.export.data.Selected
 import com.movtery.zalithlauncher.game.version.export.data.getSelectedFiles
 import com.movtery.zalithlauncher.game.version.installed.Version
 import com.movtery.zalithlauncher.game.version.installed.VersionsManager
+import com.movtery.zalithlauncher.info.InfoDistributor
 import com.movtery.zalithlauncher.ui.base.BaseScreen
 import com.movtery.zalithlauncher.ui.components.MarqueeText
 import com.movtery.zalithlauncher.ui.components.SimpleAlertDialog
 import com.movtery.zalithlauncher.ui.components.fadeEdge
-import com.movtery.zalithlauncher.ui.components.verticalScrollWithBar
 import com.movtery.zalithlauncher.ui.screens.NestedNavKey
 import com.movtery.zalithlauncher.ui.screens.NormalNavKey
 import com.movtery.zalithlauncher.ui.screens.TitledNavKey
@@ -77,7 +77,7 @@ import com.movtery.zalithlauncher.ui.screens.content.versions.export.ExportTypeS
 import com.movtery.zalithlauncher.ui.screens.navigateTo
 import com.movtery.zalithlauncher.ui.screens.onBack
 import com.movtery.zalithlauncher.ui.screens.rememberTransitionSpec
-import com.movtery.zalithlauncher.utils.logging.Logger
+import com.movtery.zalithlauncher.utils.logging.Logger.lError
 import com.movtery.zalithlauncher.viewmodel.EventViewModel
 import com.movtery.zalithlauncher.viewmodel.ScreenBackStackViewModel
 import com.movtery.zalithlauncher.viewmodel.sendKeepScreen
@@ -98,9 +98,6 @@ import java.net.ConnectException
 import java.net.SocketTimeoutException
 import java.net.UnknownHostException
 import java.nio.channels.UnresolvedAddressException
-import java.util.concurrent.TimeoutException
-
-private const val TAG = "VersionExportScreen"
 
 private sealed interface PackExportOperation {
     data object None : PackExportOperation
@@ -125,7 +122,7 @@ private val selectBlackList = listOf(
     "natives",
     "downloads",
     //各启动器的配置文件
-    "PCL", BuildKeys.LAUNCHER_IDENTIFIER, "fclversion.cfg",
+    "PCL", InfoDistributor.LAUNCHER_IDENTIFIER, "fclversion.cfg",
     //一般来说不需要打包游戏存档
     "saves",
     //Realms配置
@@ -390,7 +387,7 @@ private class ExportModpackViewModel(
             "saves" -> R.string.versions_export_alias_saves
             "shaderpacks" -> R.string.versions_export_alias_shaderpacks
             "config" -> R.string.versions_export_alias_config
-            BuildKeys.LAUNCHER_IDENTIFIER -> R.string.versions_export_alias_launcher
+            InfoDistributor.LAUNCHER_IDENTIFIER -> R.string.versions_export_alias_launcher
             else -> null
         }
     }
@@ -435,8 +432,8 @@ fun VersionExportScreen(
 
     val cBackToMainScreen by rememberUpdatedState(backToMainScreen)
     DisposableEffect(key) {
-        val listener = object : suspend () -> Unit {
-            override suspend fun invoke() {
+        val listener = object : suspend (List<Version>) -> Unit {
+            override suspend fun invoke(versions: List<Version>) {
                 cBackToMainScreen()
             }
         }
@@ -650,15 +647,16 @@ private fun PackExportOperation(
         }
         is PackExportOperation.Error -> {
             val th = operation.throwable
-            Logger.error(TAG, "Failed to download the game!", th)
+            lError("Failed to download the game!", th)
             val message = when (th) {
-                is HttpRequestTimeoutException, is SocketTimeoutException, is TimeoutException -> stringResource(R.string.error_timeout)
+                is HttpRequestTimeoutException, is SocketTimeoutException -> stringResource(R.string.error_timeout)
                 is UnknownHostException, is UnresolvedAddressException -> stringResource(R.string.error_network_unreachable)
                 is ConnectException -> stringResource(R.string.error_connection_failed)
                 is SerializationException, is JsonSyntaxException -> stringResource(R.string.error_parse_failed)
                 is DownloadFailedException -> stringResource(R.string.download_install_error_download_failed)
                 else -> {
-                    th.localizedMessage ?: th.message ?: th::class.qualifiedName ?: "Unknown error"
+                    val errorMessage = th.localizedMessage ?: th.message ?: th::class.qualifiedName ?: "Unknown error"
+                    stringResource(R.string.error_unknown, errorMessage)
                 }
             }
             val dismiss = {
@@ -674,7 +672,7 @@ private fun PackExportOperation(
                     Column(
                         modifier = Modifier
                             .fadeEdge(state = scrollState)
-                            .verticalScrollWithBar(state = scrollState),
+                            .verticalScroll(state = scrollState),
                         verticalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
                         Text(text = stringResource(R.string.versions_export_task_error_message))

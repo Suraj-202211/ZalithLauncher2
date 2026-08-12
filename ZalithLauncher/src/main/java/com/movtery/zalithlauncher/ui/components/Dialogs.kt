@@ -38,6 +38,7 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
@@ -102,7 +103,7 @@ fun SimpleAlertDialog(
             Column(
                 modifier = Modifier
                     .fadeEdge(state = scrollState)
-                    .verticalScrollWithBar(state = scrollState)
+                    .verticalScroll(state = scrollState)
             ) {
                 Text(text = text)
             }
@@ -151,7 +152,7 @@ fun SimpleAlertDialog(
             Column(
                 modifier = Modifier
                     .fadeEdge(state = scrollState)
-                    .verticalScrollWithBar(state = scrollState)
+                    .verticalScroll(state = scrollState)
             ) {
                 Text(text = text)
             }
@@ -187,7 +188,7 @@ fun SimpleAlertDialog(
             Column(
                 modifier = Modifier
                     .fadeEdge(state = scrollState)
-                    .verticalScrollWithBar(state = scrollState)
+                    .verticalScroll(state = scrollState)
             ) {
                 text()
             }
@@ -365,7 +366,7 @@ private fun simpleEditDialogBody(
         modifier = Modifier
             .fadeEdge(state = scrollState)
             .weight(1f, fill = false)
-            .verticalScrollWithBar(state = scrollState)
+            .verticalScroll(state = scrollState)
             .fillMaxWidth(),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
@@ -463,6 +464,7 @@ fun SimpleCheckEditDialog(
 /**
  * 一个很简单的列表Dialog
  * @param items 需要列出的items
+ * @param itemTextProvider 提供单个item的展示文本
  * @param onItemSelected item被点击的回调
  * @param onDismissRequest dialog被关闭的回调
  * @param showConfirm 是否通过确认按钮来触发item的点击回调
@@ -471,10 +473,23 @@ fun SimpleCheckEditDialog(
 fun <T> SimpleListDialog(
     title: String,
     items: List<T>,
+    itemTextProvider: @Composable (T) -> String,
     onItemSelected: (T) -> Unit,
     onDismissRequest: (selected: Boolean) -> Unit,
     current: T? = null,
-    itemLayout: @Composable (item: T, isCurrent: Boolean, onClick: () -> Unit) -> Unit,
+    itemLayout: @Composable (
+        item: T,
+        isCurrent: Boolean,
+        text: String,
+        onClick: () -> Unit
+    ) -> Unit = { _, isCurrent, text, onClick ->
+        SimpleListItem(
+            selected = isCurrent,
+            itemName = text,
+            modifier = Modifier.fillMaxWidth(),
+            onClick = onClick
+        )
+    },
     showConfirm: Boolean = false,
     confirmText: @Composable RowScope.() -> Unit = {
         MarqueeText(text = stringResource(R.string.generic_confirm))
@@ -522,7 +537,14 @@ fun <T> SimpleListDialog(
                     ) {
                         items(items) { item ->
                             val isCurrent = selectedItem == item
-                            itemLayout(item, isCurrent) {
+
+                            val text = itemTextProvider(item)
+
+                            itemLayout(
+                                item,
+                                isCurrent,
+                                text
+                            ) {
                                 selectedItem = item
                                 if (!showConfirm && !isCurrent) {
                                     onItemSelected(item)

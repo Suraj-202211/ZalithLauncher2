@@ -20,11 +20,10 @@ package com.movtery.zalithlauncher.terracotta
 
 import com.google.gson.JsonParseException
 import com.movtery.zalithlauncher.path.GLOBAL_CLIENT
-import com.movtery.zalithlauncher.setting.AllSettings
 import com.movtery.zalithlauncher.utils.isChinaMainland
-import com.movtery.zalithlauncher.utils.logging.Logger
+import com.movtery.zalithlauncher.utils.logging.Logger.lInfo
+import com.movtery.zalithlauncher.utils.logging.Logger.lWarning
 import com.movtery.zalithlauncher.utils.network.safeBodyAsJson
-import com.movtery.zalithlauncher.utils.string.isNotEmptyOrBlank
 import io.ktor.client.request.get
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.Mutex
@@ -34,8 +33,6 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import java.net.URI
 import java.net.URISyntaxException
-
-private const val TAG = "TerracottaNodeList"
 
 private const val NODE_LIST_URL = "https://terracotta.glavo.site/nodes"
 
@@ -70,17 +67,6 @@ suspend fun fetchNodes(): List<URI> {
     return fetchMutex.withLock {
         nodeList?.let { return it }
 
-        if (AllSettings.enableTerracottaNodes.getValue()) {
-            // 使用自定义的 EasyTier 服务器节点
-            val url = AllSettings.terracottaNodes.getValue()
-            if (url.isNotEmptyOrBlank()) {
-                val tempList = listOf(URI(url))
-                nodeList = tempList
-                return tempList
-            }
-            // 为空则继续使用默认的节点逻辑
-        }
-
         withContext(Dispatchers.IO) {
             fetchNodesFromRemote()
         }.also { result ->
@@ -96,7 +82,7 @@ private suspend fun fetchNodesFromRemote(): List<URI> {
             .safeBodyAsJson<List<TerracottaNode?>?>()
 
         if (nodes.isNullOrEmpty()) {
-            Logger.info(TAG, "No available Terracotta nodes found")
+            lInfo("No available Terracotta nodes found")
             return emptyList()
         }
 
@@ -110,7 +96,7 @@ private suspend fun fetchNodesFromRemote(): List<URI> {
 
         result
     }.onFailure {
-        Logger.warning(TAG, "Failed to fetch terracotta node list", it)
+        lWarning("Failed to fetch terracotta node list", it)
     }.getOrDefault(emptyList())
 }
 
@@ -127,7 +113,7 @@ private fun parseNode(
         URI.create(node.url)
 
     } catch (e: Exception) {
-        Logger.warning(TAG, "Invalid terracotta node: $node", e)
+        lWarning("Invalid terracotta node: $node", e)
         null
     }
 }

@@ -220,7 +220,7 @@ private fun NavigationUI(
                     ControlSettingsScreen(key, settingsScreenKey, mainScreenKey, eventViewModel, submitError)
                 }
                 entry<NormalNavKey.Settings.Gamepad> {
-                    GamepadSettingsScreen(key, settingsScreenKey, mainScreenKey, eventViewModel)
+                    GamepadSettingsScreen(key, settingsScreenKey, mainScreenKey)
                 }
                 entry<NormalNavKey.Settings.Launcher> {
                     LauncherSettingsScreen(
@@ -233,7 +233,7 @@ private fun NavigationUI(
                     )
                 }
                 entry<NormalNavKey.Settings.JavaManager> {
-                    JavaManageScreen(key, settingsScreenKey, mainScreenKey, eventViewModel, submitError)
+                    JavaManageScreen(key, settingsScreenKey, mainScreenKey, submitError)
                 }
                 entry<NormalNavKey.Settings.ControlManager> {
                     ControlManageScreen(key, settingsScreenKey, mainScreenKey, eventViewModel, submitError)

@@ -20,14 +20,12 @@ package com.movtery.zalithlauncher.game.version.resource_pack
 
 import com.movtery.zalithlauncher.game.version.mod.meta.PackMcMeta
 import com.movtery.zalithlauncher.utils.GSON
-import com.movtery.zalithlauncher.utils.logging.Logger
+import com.movtery.zalithlauncher.utils.logging.Logger.lWarning
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.apache.commons.io.FileUtils
 import java.io.File
 import java.util.zip.ZipFile
-
-private const val TAG = "ResourcePackUtils"
 
 /**
  * 解析资源包文件，游戏内仅支持加载文件夹、文件后缀为zip的资源包
@@ -69,7 +67,7 @@ suspend fun parseResourcePack(file: File): ResourcePackInfo? = withContext(Dispa
             runCatching {
                 GSON.fromJson(content, PackMcMeta::class.java)
             }.onFailure {
-                Logger.warning(TAG, "Failed to parse the resource package metadata: ${file.absolutePath}", it)
+                lWarning("Failed to parse the resource package metadata: ${file.absolutePath}", it)
             }.getOrNull()
         }?.also {
             //解析成功，则代表其是一个有效的格式
@@ -85,6 +83,6 @@ suspend fun parseResourcePack(file: File): ResourcePackInfo? = withContext(Dispa
             icon = iconBytes
         )
     }.onFailure {
-        Logger.warning(TAG, "Failed to parse the resource package: ${file.absolutePath}", it)
+        lWarning("Failed to parse the resource package: ${file.absolutePath}", it)
     }.getOrNull()
 }

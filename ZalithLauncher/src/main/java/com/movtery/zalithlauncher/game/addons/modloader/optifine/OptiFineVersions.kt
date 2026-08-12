@@ -26,7 +26,8 @@ import com.movtery.zalithlauncher.path.GLOBAL_CLIENT
 import com.movtery.zalithlauncher.setting.AllSettings
 import com.movtery.zalithlauncher.setting.enums.MirrorSourceType
 import com.movtery.zalithlauncher.utils.isChinaMainland
-import com.movtery.zalithlauncher.utils.logging.Logger
+import com.movtery.zalithlauncher.utils.logging.Logger.lDebug
+import com.movtery.zalithlauncher.utils.logging.Logger.lWarning
 import com.movtery.zalithlauncher.utils.network.safeBodyAsJson
 import com.movtery.zalithlauncher.utils.network.safeBodyAsText
 import io.ktor.client.request.get
@@ -37,8 +38,6 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
-
-private const val TAG = "OptiFineVersions"
 
 /**
  * [Some logic refers to PCL2](https://github.com/Hex-Dragon/PCL2/blob/44aea3e/Plain%20Craft%20Launcher%202/Modules/Minecraft/ModDownload.vb#L375-L409)
@@ -114,7 +113,7 @@ object OptiFineVersions {
             val jars  = jarPattern.findAll(html).map { it.groupValues[1].trim() }.toList()
 
             if (names.size != dates.size || names.size != forges.size || names.size != jars.size) {
-                Logger.warning(TAG, "The number of parsed fields is inconsistent.")
+                lWarning("The number of parsed fields is inconsistent.")
                 return@withContext emptyList()
             }
 
@@ -169,10 +168,10 @@ object OptiFineVersions {
             cacheResult = versions
             versions
         } catch(_: CancellationException) {
-            Logger.debug(TAG, "Client cancelled.")
+            lDebug("Client cancelled.")
             null
         } catch (e: Exception) {
-            Logger.warning(TAG, "Failed to fetch OptiFine list!", e)
+            lWarning("Failed to fetch OptiFine list!", e)
             throw e
         }
     }
@@ -222,10 +221,10 @@ object OptiFineVersions {
                     cacheResult = it
                 }
             } catch(_: CancellationException) {
-                Logger.debug(TAG, "Client cancelled.")
+                lDebug("Client cancelled.")
                 null
             } catch (e: Exception) {
-                Logger.warning(TAG, "Failed to fetch OptiFine list!", e)
+                lWarning("Failed to fetch OptiFine list!", e)
                 throw e
             }
         }
@@ -255,7 +254,7 @@ object OptiFineVersions {
             }
 
         } catch (e: Exception) {
-            Logger.warning(TAG, "Failed to fetch $fileName download url!", e)
+            lWarning("Failed to fetch $fileName download url!", e)
             return@withContext null
         }
     }

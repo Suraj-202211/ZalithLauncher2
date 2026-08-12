@@ -30,6 +30,7 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -55,14 +56,12 @@ import com.movtery.zalithlauncher.coroutine.TaskSystem
 import com.movtery.zalithlauncher.game.version.installed.Version
 import com.movtery.zalithlauncher.game.version.installed.VersionFolders
 import com.movtery.zalithlauncher.game.version.installed.VersionsManager
-import com.movtery.zalithlauncher.ui.androidText
 import com.movtery.zalithlauncher.ui.base.BaseScreen
 import com.movtery.zalithlauncher.ui.components.AnimatedColumn
 import com.movtery.zalithlauncher.ui.components.IconTextButton
 import com.movtery.zalithlauncher.ui.components.SimpleAlertDialog
 import com.movtery.zalithlauncher.ui.components.SimpleEditDialog
 import com.movtery.zalithlauncher.ui.components.SimpleTaskDialog
-import com.movtery.zalithlauncher.ui.components.verticalScrollWithBar
 import com.movtery.zalithlauncher.ui.screens.NestedNavKey
 import com.movtery.zalithlauncher.ui.screens.NormalNavKey
 import com.movtery.zalithlauncher.ui.screens.TitledNavKey
@@ -74,15 +73,13 @@ import com.movtery.zalithlauncher.ui.screens.content.versions.layouts.VersionOve
 import com.movtery.zalithlauncher.utils.file.ensureDirectory
 import com.movtery.zalithlauncher.utils.file.shareFile
 import com.movtery.zalithlauncher.utils.image.isImageFile
-import com.movtery.zalithlauncher.utils.logging.Logger
+import com.movtery.zalithlauncher.utils.logging.Logger.lError
 import com.movtery.zalithlauncher.utils.string.getMessageOrToString
 import com.movtery.zalithlauncher.viewmodel.ErrorViewModel
 import com.movtery.zalithlauncher.viewmodel.EventViewModel
 import kotlinx.coroutines.Dispatchers
 import org.apache.commons.io.FileUtils
 import java.io.File
-
-private const val TAG = "VersionOverView"
 
 @Composable
 fun VersionOverViewScreen(
@@ -134,7 +131,7 @@ fun VersionOverViewScreen(
         AnimatedColumn(
             modifier = Modifier
                 .fillMaxWidth()
-                .verticalScrollWithBar(state = rememberScrollState())
+                .verticalScroll(state = rememberScrollState())
                 .padding(all = 12.dp),
             isVisible = isVisible
         ) { scope ->
@@ -185,8 +182,8 @@ fun VersionOverViewScreen(
                         }.onFailure { e ->
                             submitError(
                                 ErrorViewModel.ThrowableMessage(
-                                    title = androidText(R.string.error_create_dir, folder.absolutePath),
-                                    message = androidText(e.getMessageOrToString())
+                                    title = context.getString(R.string.error_create_dir, folder.absolutePath),
+                                    message = e.getMessageOrToString()
                                 )
                             )
                             return@VersionQuickActions
@@ -194,8 +191,8 @@ fun VersionOverViewScreen(
                         shareFile(context, folder) {
                             submitError(
                                 ErrorViewModel.ThrowableMessage(
-                                    title = androidText(R.string.generic_error),
-                                    message = androidText(R.string.versions_overview_cant_share_folder_message)
+                                    title = context.getString(R.string.generic_error),
+                                    message = context.getString(R.string.versions_overview_cant_share_folder_message)
                                 )
                             )
                         }
@@ -218,7 +215,6 @@ private fun VersionInfoLayout(
     resetIcon: () -> Unit = {}
 ) {
     val context = LocalContext.current
-    val errorImportImageText = stringResource(R.string.error_import_image)
     val iconFile = remember {
         VersionsManager.getVersionIconFile(version)
     }
@@ -262,12 +258,12 @@ private fun VersionInfoLayout(
                                         if (!iconFile.isImageFile()) error("The selected file is not an image!")
                                     },
                                     onError = { e ->
-                                        Logger.error(TAG, "Failed to import icon!", e)
+                                        lError("Failed to import icon!", e)
                                         FileUtils.deleteQuietly(iconFile)
                                         submitError(
                                             ErrorViewModel.ThrowableMessage(
-                                                title = androidText(errorImportImageText),
-                                                message = androidText(e.getMessageOrToString())
+                                                title = context.getString(R.string.error_import_image),
+                                                message = e.getMessageOrToString()
                                             )
                                         )
                                     },
@@ -564,11 +560,11 @@ private fun VersionsOperation(
                 context = Dispatchers.IO,
                 onDismiss = { updateOperation(VersionsOperation.None) },
                 onError = { e ->
-                    Logger.error(TAG, "Failed to run task.", e)
+                    lError("Failed to run task.", e)
                     submitError(
                         ErrorViewModel.ThrowableMessage(
-                            title = androidText(errorMessage),
-                            message = androidText(e.getMessageOrToString())
+                            title = errorMessage,
+                            message = e.getMessageOrToString()
                         )
                     )
                 }

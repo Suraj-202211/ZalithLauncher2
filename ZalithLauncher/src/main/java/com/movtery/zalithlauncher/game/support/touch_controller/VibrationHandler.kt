@@ -22,12 +22,9 @@ import android.annotation.SuppressLint
 import android.os.Build
 import android.os.VibrationEffect
 import android.os.Vibrator
-import com.google.gson.annotations.SerializedName
-import com.movtery.zalithlauncher.utils.logging.Logger
+import com.movtery.zalithlauncher.utils.logging.Logger.lError
 import top.fifthlight.touchcontroller.proxy.client.LauncherProxyClient
 import top.fifthlight.touchcontroller.proxy.message.VibrateMessage
-
-private const val TAG = "VibrationHandler"
 
 class VibrationHandler(
     private val vibrator: Vibrator,
@@ -35,15 +32,10 @@ class VibrationHandler(
     private val vibrateKind: VibrateKind?,
 ) : LauncherProxyClient.VibrationHandler {
     enum class VibrateKind {
-        @SerializedName("ONE_SHOT")
         ONE_SHOT,
-        @SerializedName("CLICK")
         CLICK,
-        @SerializedName("DOUBLE_CLICK")
         DOUBLE_CLICK,
-        @SerializedName("HEAVY_CLICK")
         HEAVY_CLICK,
-        @SerializedName("TICK")
         TICK;
 
         companion object {
@@ -80,7 +72,7 @@ class VibrationHandler(
                 }
                 vibrator.vibrate(effect)
             }.onFailure {
-                Logger.error(TAG, "Failed to attempt vibrating the device!", it)
+                lError("Failed to attempt vibrating the device!", it)
             }
         }
     }

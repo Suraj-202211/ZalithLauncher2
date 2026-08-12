@@ -23,7 +23,6 @@ import androidx.compose.animation.core.Animatable
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.basicMarquee
-import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -47,13 +46,12 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -63,7 +61,6 @@ import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.scrollbar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -120,7 +117,6 @@ import com.movtery.zalithlauncher.ui.components.SimpleAlertDialog
 import com.movtery.zalithlauncher.ui.components.SimpleTextInputField
 import com.movtery.zalithlauncher.ui.components.SingleLineTextCheck
 import com.movtery.zalithlauncher.ui.components.fadeEdge
-import com.movtery.zalithlauncher.ui.components.verticalScrollWithBar
 import com.movtery.zalithlauncher.ui.screens.NestedNavKey
 import com.movtery.zalithlauncher.ui.screens.NormalNavKey
 import com.movtery.zalithlauncher.ui.screens.TitledNavKey
@@ -135,7 +131,7 @@ import com.movtery.zalithlauncher.ui.theme.onItemColor
 import com.movtery.zalithlauncher.utils.animation.getAnimateTween
 import com.movtery.zalithlauncher.utils.animation.swapAnimateDpAsState
 import com.movtery.zalithlauncher.utils.copyText
-import com.movtery.zalithlauncher.utils.logging.Logger
+import com.movtery.zalithlauncher.utils.logging.Logger.lInfo
 import com.movtery.zalithlauncher.utils.string.isEmptyOrBlank
 import com.movtery.zalithlauncher.utils.string.stripColorCodes
 import kotlinx.coroutines.Dispatchers
@@ -148,8 +144,6 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import java.io.File
-
-private const val TAG = "ServerList"
 
 private sealed interface ServerListOperation {
     /** 服务器列表刷新中 */
@@ -308,6 +302,7 @@ private class ServerListViewModel(
     /**
      * 保存服务器列表
      * @param reason 保存服务器列表的理由，方便日志定位
+     * @param gamePath 指定 servers.dat 文件的保存目录
      * @param beforeSave 在保存前可以进行的操作
      * @param beforeSave 在保存后可以进行的操作
      */
@@ -319,7 +314,7 @@ private class ServerListViewModel(
     ) {
         val job = viewModelScope.launch(Dispatchers.IO) {
             dataMutex.withLock {
-                Logger.info(TAG, "Saving server list, reason = $reason, reload UI? = $reload")
+                lInfo("Saving server list, reason = $reason, reload UI? = $reload")
 
                 withContext(Dispatchers.Main) { saving = true }
                 beforeSave()
@@ -473,7 +468,6 @@ private fun ServerDataOperation(
     }
 }
 
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun ServerListScreen(
     mainScreenKey: TitledNavKey?,
@@ -680,15 +674,10 @@ private fun ServerListBody(
 ) {
     servers?.let { list ->
         if (list.isNotEmpty()) {
-            val scrollState = rememberLazyListState()
             LazyColumn(
-                modifier = modifier.scrollbar(
-                    state = scrollState.scrollIndicatorState,
-                    orientation = Orientation.Vertical,
-                ),
+                modifier = modifier,
                 contentPadding = PaddingValues(all = 12.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-                state = scrollState,
+                verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 items(list) { server ->
                     ServerItem(
@@ -1186,7 +1175,7 @@ private fun ServerEditDialog(
                         modifier = Modifier
                             .fadeEdge(state = scrollState)
                             .weight(1f, fill = false)
-                            .verticalScrollWithBar(state = scrollState)
+                            .verticalScroll(state = scrollState)
                             .fillMaxWidth(),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {

@@ -29,7 +29,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material3.Icon
@@ -52,15 +51,12 @@ import com.movtery.zalithlauncher.setting.AllSettings
 import com.movtery.zalithlauncher.setting.enums.GestureActionType
 import com.movtery.zalithlauncher.setting.enums.MouseControlMode
 import com.movtery.zalithlauncher.setting.unit.floatRange
-import com.movtery.zalithlauncher.ui.AndroidStringText
-import com.movtery.zalithlauncher.ui.androidText
 import com.movtery.zalithlauncher.ui.components.DualMenuSubscreen
 import com.movtery.zalithlauncher.ui.components.MenuListLayout
 import com.movtery.zalithlauncher.ui.components.MenuSliderLayout
 import com.movtery.zalithlauncher.ui.components.MenuState
 import com.movtery.zalithlauncher.ui.components.MenuSwitchButton
 import com.movtery.zalithlauncher.ui.components.MenuTextButton
-import com.movtery.zalithlauncher.ui.components.lazyScrollWithBar
 import com.movtery.zalithlauncher.ui.control.HotbarRule
 import com.movtery.zalithlauncher.ui.control.gyroscope.isGyroscopeAvailable
 import com.movtery.zalithlauncher.ui.theme.cardColor
@@ -98,8 +94,8 @@ fun GameMenuSubscreen(
     onInputMethod: () -> Unit,
     onSendKeycode: () -> Unit,
     onReplacementControl: () -> Unit,
-    onEditLayout: () -> Unit,
-    onShowToast: (AndroidStringText, Int) -> Unit
+    onManageJoystick: () -> Unit,
+    onEditLayout: () -> Unit
 ) {
     DualMenuSubscreen(
         state = state,
@@ -151,6 +147,7 @@ fun GameMenuSubscreen(
                                 onInputMethod = onInputMethod,
                                 onSendKeycode = onSendKeycode,
                                 onReplacementControl = onReplacementControl,
+                                onManageJoystick = onManageJoystick,
                                 onEditLayout = onEditLayout
                             )
                         }
@@ -179,8 +176,7 @@ fun GameMenuSubscreen(
                 onSwitchLog = onSwitchLog,
                 enableTerracotta = enableTerracotta,
                 onOpenTerracottaMenu = onOpenTerracottaMenu,
-                onRefreshWindowSize = onRefreshWindowSize,
-                onShowToast = onShowToast
+                onRefreshWindowSize = onRefreshWindowSize
             )
         }
     )
@@ -193,15 +189,15 @@ private fun GameActionContent(
     enableTerracotta: Boolean,
     onOpenTerracottaMenu: () -> Unit,
     onRefreshWindowSize: () -> Unit,
-    onShowToast: (AndroidStringText, Int) -> Unit,
     modifier: Modifier = Modifier,
     color: Color = cardColor(false),
     contentColor: Color = onCardColor(),
 ) {
-    val listState = rememberLazyListState()
+    //检查陀螺仪是否可用
+    val context = LocalContext.current
+
     LazyColumn(
-        modifier = modifier.lazyScrollWithBar(listState),
-        state = listState,
+        modifier = modifier,
         contentPadding = PaddingValues(all = 8.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
@@ -257,10 +253,11 @@ private fun GameActionContent(
                 onSwitch = { value ->
                     AllSettings.showMenuBall.save(value)
                     if (!value) {
-                        onShowToast(
-                            androidText(R.string.game_menu_option_show_menu_hided),
+                        Toast.makeText(
+                            context,
+                            context.getString(R.string.game_menu_option_show_menu_hided),
                             Toast.LENGTH_LONG
-                        )
+                        ).show()
                     }
                 },
                 color = color,
@@ -342,12 +339,11 @@ private fun ControlOverview(
     onInputMethod: () -> Unit,
     onSendKeycode: () -> Unit,
     onReplacementControl: () -> Unit,
+    onManageJoystick: () -> Unit,
     onEditLayout: () -> Unit
 ) {
-    val listState = rememberLazyListState()
     LazyColumn(
-        modifier = modifier.lazyScrollWithBar(listState),
-        state = listState,
+        modifier = modifier,
         contentPadding = PaddingValues(all = 8.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
@@ -417,6 +413,78 @@ private fun ControlOverview(
                 contentColor = contentColor,
             )
         }
+
+        //管理摇杆
+        item {
+            MenuTextButton(
+                modifier = Modifier.fillMaxWidth(),
+                text = stringResource(R.string.game_styles_joystick),
+                onClick = {
+                    onManageJoystick()
+                    closeScreen()
+                },
+                color = color,
+                contentColor = contentColor,
+            )
+        }
+
+        item {
+            Spacer(modifier = Modifier.height(8.dp))
+        }
+
+        //快捷栏定位规则
+        item {
+            MenuListLayout(
+                modifier = Modifier.fillMaxWidth(),
+                title = stringResource(R.string.game_menu_option_hotbar_rule),
+                items = HotbarRule.entries,
+                currentItem = AllSettings.hotbarRule.state,
+                onItemChange = { AllSettings.hotbarRule.save(it) },
+                getItemText = { stringResource(it.nameRes) },
+                color = color,
+                contentColor = contentColor,
+            )
+        }
+
+        //快捷栏宽度
+        item {
+            MenuSliderLayout(
+                modifier = Modifier.fillMaxWidth(),
+                title = stringResource(R.string.game_menu_option_hotbar_width),
+                value = AllSettings.hotbarWidth.state / 10f,
+                valueRange = 0f..100f,
+                enabled = AllSettings.hotbarRule.state == HotbarRule.Custom,
+                onValueChange = { value ->
+                    AllSettings.hotbarWidth.updateState((value * 10f).toInt())
+                },
+                onValueChangeFinished = { value ->
+                    AllSettings.hotbarWidth.save((value * 10f).toInt())
+                },
+                suffix = "%",
+                color = color,
+                contentColor = contentColor,
+            )
+        }
+
+        //快捷栏高度
+        item {
+            MenuSliderLayout(
+                modifier = Modifier.fillMaxWidth(),
+                title = stringResource(R.string.game_menu_option_hotbar_height),
+                value = AllSettings.hotbarHeight.state / 10f,
+                valueRange = 0f..100f,
+                enabled = AllSettings.hotbarRule.state == HotbarRule.Custom,
+                onValueChange = { value ->
+                    AllSettings.hotbarHeight.updateState((value * 10f).toInt())
+                },
+                onValueChangeFinished = { value ->
+                    AllSettings.hotbarHeight.save((value * 10f).toInt())
+                },
+                suffix = "%",
+                color = color,
+                contentColor = contentColor,
+            )
+        }
     }
 }
 
@@ -426,10 +494,8 @@ private fun ControlMouse(
     color: Color = cardColor(false),
     contentColor: Color = onCardColor(),
 ) {
-    val listState = rememberLazyListState()
     LazyColumn(
-        modifier = modifier.lazyScrollWithBar(listState),
-        state = listState,
+        modifier = modifier,
         contentPadding = PaddingValues(all = 8.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
@@ -536,10 +602,8 @@ private fun ControlGamepad(
     color: Color = cardColor(false),
     contentColor: Color = onCardColor(),
 ) {
-    val listState = rememberLazyListState()
     LazyColumn(
-        modifier = modifier.lazyScrollWithBar(listState),
-        state = listState,
+        modifier = modifier,
         contentPadding = PaddingValues(all = 8.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
@@ -644,10 +708,8 @@ private fun ControlGesture(
     color: Color = cardColor(false),
     contentColor: Color = onCardColor(),
 ) {
-    val listState = rememberLazyListState()
     LazyColumn(
-        modifier = modifier.lazyScrollWithBar(listState),
-        state = listState,
+        modifier = modifier,
         contentPadding = PaddingValues(all = 8.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
@@ -708,108 +770,6 @@ private fun ControlGesture(
                 contentColor = contentColor,
             )
         }
-
-        item {
-            Spacer(modifier = Modifier.height(8.dp))
-        }
-
-        //快捷栏定位规则
-        item {
-            MenuListLayout(
-                modifier = Modifier.fillMaxWidth(),
-                title = stringResource(R.string.game_menu_option_hotbar_rule),
-                items = HotbarRule.entries,
-                currentItem = AllSettings.hotbarRule.state,
-                onItemChange = { AllSettings.hotbarRule.save(it) },
-                getItemText = { stringResource(it.nameRes) },
-                color = color,
-                contentColor = contentColor,
-            )
-        }
-
-        //快捷栏宽度
-        item {
-            MenuSliderLayout(
-                modifier = Modifier.fillMaxWidth(),
-                title = stringResource(R.string.game_menu_option_hotbar_width),
-                value = AllSettings.hotbarWidth.state / 10f,
-                valueRange = 0f..100f,
-                enabled = AllSettings.hotbarRule.state == HotbarRule.Custom,
-                onValueChange = { value ->
-                    AllSettings.hotbarWidth.updateState((value * 10f).toInt())
-                },
-                onValueChangeFinished = { value ->
-                    AllSettings.hotbarWidth.save((value * 10f).toInt())
-                },
-                suffix = "%",
-                color = color,
-                contentColor = contentColor,
-            )
-        }
-
-        //快捷栏高度
-        item {
-            MenuSliderLayout(
-                modifier = Modifier.fillMaxWidth(),
-                title = stringResource(R.string.game_menu_option_hotbar_height),
-                value = AllSettings.hotbarHeight.state / 10f,
-                valueRange = 0f..100f,
-                enabled = AllSettings.hotbarRule.state == HotbarRule.Custom,
-                onValueChange = { value ->
-                    AllSettings.hotbarHeight.updateState((value * 10f).toInt())
-                },
-                onValueChangeFinished = { value ->
-                    AllSettings.hotbarHeight.save((value * 10f).toInt())
-                },
-                suffix = "%",
-                color = color,
-                contentColor = contentColor,
-            )
-        }
-
-        //快捷栏双击与副手交换物品
-        item {
-            MenuSwitchButton(
-                modifier = Modifier.fillMaxWidth(),
-                text = stringResource(R.string.game_menu_option_hotbar_double_click),
-                switch = AllSettings.hotbarDoubleClick.state,
-                onSwitch = { AllSettings.hotbarDoubleClick.save(it) },
-                color = color,
-                contentColor = contentColor,
-            )
-        }
-
-        //快捷栏长按丢弃所选物品
-        item {
-            MenuSwitchButton(
-                modifier = Modifier.fillMaxWidth(),
-                text = stringResource(R.string.game_menu_option_hotbar_long_click),
-                switch = AllSettings.hotbarLongClick.state,
-                onSwitch = { AllSettings.hotbarLongClick.save(it) },
-                color = color,
-                contentColor = contentColor,
-            )
-        }
-
-        //快捷栏长按快捷栏触发延迟
-        item {
-            MenuSliderLayout(
-                modifier = Modifier.fillMaxWidth(),
-                title = stringResource(R.string.game_menu_option_hotbar_long_click_delay),
-                value = AllSettings.hotbarLongClickDelay.state,
-                valueRange = AllSettings.hotbarLongClickDelay.floatRange,
-                onValueChange = { value ->
-                    AllSettings.hotbarLongClickDelay.updateState(value)
-                },
-                onValueChangeFinished = { value ->
-                    AllSettings.hotbarLongClickDelay.save(value)
-                },
-                suffix = "ms",
-                enabled = AllSettings.hotbarLongClick.state,
-                color = color,
-                contentColor = contentColor,
-            )
-        }
     }
 }
 
@@ -824,10 +784,8 @@ private fun ControlGyroscope(
         isGyroscopeAvailable(context = context)
     }
 
-    val listState = rememberLazyListState()
     LazyColumn(
-        modifier = modifier.lazyScrollWithBar(listState),
-        state = listState,
+        modifier = modifier,
         contentPadding = PaddingValues(all = 8.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
@@ -931,3 +889,4 @@ private fun ControlGyroscope(
         }
     }
 }
+

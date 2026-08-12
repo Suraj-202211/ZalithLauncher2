@@ -18,9 +18,7 @@
 
 package com.movtery.zalithlauncher.game.version.mod
 
-import android.util.Log
-import com.movtery.zalithlauncher.utils.file.UnpackZipException
-import com.movtery.zalithlauncher.utils.logging.Logger
+import com.movtery.zalithlauncher.utils.logging.Logger.lWarning
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.Channel
@@ -32,8 +30,6 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import java.io.File
-
-private const val TAG = "AllModReader"
 
 const val READER_PARALLELISM = 8
 
@@ -111,8 +107,6 @@ class AllModReader(val modsDir: File) {
                         pack(
                             reader.fromLocal(file)
                         )
-                    }.onFailure { e ->
-                        if (e !is UnpackZipException) Log.d(TAG, "Exception encountered while parsing the mod", e)
                     }.getOrNull()
                     //返回null，继续使用下一个解析器
                 } ?: throw IllegalArgumentException("No matching reader for extension: $extension")
@@ -120,7 +114,7 @@ class AllModReader(val modsDir: File) {
                 when (e) {
                     is CancellationException -> throw e
                     else -> {
-                        Logger.warning(TAG, "Failed to read mod: $file", e)
+                        lWarning("Failed to read mod: $file", e)
                         return pack(
                             createNotMod(file)
                         )

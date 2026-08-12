@@ -19,7 +19,6 @@
 package com.movtery.zalithlauncher.game.download.assets.platform.curseforge.models
 
 import com.movtery.zalithlauncher.R
-import com.movtery.zalithlauncher.game.download.assets.platform.PlatformClasses
 import com.movtery.zalithlauncher.game.download.assets.platform.PlatformFilterCode
 
 /**
@@ -326,15 +325,4 @@ enum class CurseForgeShadersCategory : CurseForgeCategory, PlatformFilterCode {
     };
 
     override fun index(): Int = this.ordinal
-}
-
-fun String.mapCurseForgeCategory(classes: PlatformClasses): PlatformFilterCode? {
-    val mapValues = when (classes) {
-        PlatformClasses.MOD -> CurseForgeModCategory.entries
-        PlatformClasses.MOD_PACK -> CurseForgeModpackCategory.entries
-        PlatformClasses.RESOURCE_PACK -> CurseForgeResourcePackCategory.entries
-        PlatformClasses.SAVES -> CurseForgeSavesCategory.entries
-        PlatformClasses.SHADERS -> CurseForgeShadersCategory.entries
-    }
-    return mapValues.find { it.describe() == this }
 }

@@ -20,7 +20,7 @@ package com.movtery.zalithlauncher.utils.network
 
 import com.movtery.zalithlauncher.path.GLOBAL_CLIENT
 import com.movtery.zalithlauncher.path.GLOBAL_JSON
-import com.movtery.zalithlauncher.utils.logging.Logger
+import com.movtery.zalithlauncher.utils.logging.Logger.lDebug
 import io.ktor.client.call.body
 import io.ktor.client.plugins.ClientRequestException
 import io.ktor.client.request.forms.submitForm
@@ -41,11 +41,7 @@ import kotlinx.coroutines.withContext
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.json.decodeFromStream
 import java.io.IOException
-import java.nio.channels.UnresolvedAddressException
 import kotlin.coroutines.CoroutineContext
-import kotlin.time.Duration.Companion.milliseconds
-
-private const val TAG = "NetWorks"
 
 @OptIn(ExperimentalSerializationApi::class)
 suspend inline fun <reified T> HttpResponse.safeBodyAsJson(): T {
@@ -123,14 +119,13 @@ suspend fun <T> withRetry(
             return block()
         } catch (e: CancellationException) {
             //协程被取消时不重试，直接抛出
-            Logger.debug(TAG, "$logTag: Cancelled: ${e.message}")
+            lDebug("$logTag: Cancelled: ${e.message}")
             throw e
         } catch (e: Exception) {
-            // 部分异常（如 UnresolvedAddressException）message 为 null，需要输出异常类型以便诊断
-            Logger.debug(TAG, "$logTag: Attempt ${retryCount + 1} failed: ${e::class.simpleName}: ${e.message}")
+            lDebug("$logTag: Attempt ${retryCount + 1} failed: ${e.message}")
             lastError = e
             if (canRetry(e)) {
-                delay(currentDelay.milliseconds)
+                delay(currentDelay)
                 currentDelay = (currentDelay * 2).coerceAtMost(maxDelay)
                 retryCount++
             } else {
@@ -144,7 +139,6 @@ suspend fun <T> withRetry(
 private fun canRetry(e: Exception): Boolean {
     return when (e) {
         is ClientRequestException -> e.response.status.value in 500..599 //5xx错误可重试
-        is UnresolvedAddressException -> true // DNS解析失败，可能是临时性故障
         is IOException -> true //网络错误
         else -> false
     }

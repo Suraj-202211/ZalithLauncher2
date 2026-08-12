@@ -27,13 +27,7 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayDeque;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Objects;
-import java.util.Optional;
+import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -898,14 +892,14 @@ public abstract sealed class GameVersionNumber implements Comparable<GameVersion
 
                     String[] parts = line.split(",");
                     if (parts.length < 2) {
-                        Logger.INSTANCE.warning("GameVersionNumber", "Invalid line: " + line, null);
+                        Logger.INSTANCE.lWarning("Invalid line: " + line, null);
                         continue;
                     }
 
                     String normalized = parts[0];
                     Special normalizedVersion = SPECIALS.get(normalized);
                     if (normalizedVersion == null) {
-                        Logger.INSTANCE.warning("GameVersionNumber", "Unknown special version: " + normalized, null);
+                        Logger.INSTANCE.lWarning("Unknown special version: " + normalized, null);
                         continue;
                     }
 

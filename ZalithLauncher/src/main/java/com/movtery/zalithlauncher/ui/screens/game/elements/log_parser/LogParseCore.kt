@@ -184,3 +184,5 @@ object LogParseCore {
     fun isLineStart(text: String, i: Int): Boolean =
         i == 0 || text[i - 1] == '\n'
 }
+
+

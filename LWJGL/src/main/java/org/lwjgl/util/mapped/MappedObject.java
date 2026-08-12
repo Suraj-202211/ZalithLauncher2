@@ -151,7 +151,7 @@ public abstract class MappedObject {
 	 * This (required) notation might cause compiler warnings, which can be suppressed with @SuppressWarnings("static-access").<br>
 	 * Using Java 5.0's static-import on this method will break functionality.
 	 */
-	@SuppressWarnings("unused")
+	@SuppressWarnings("all")
 	public static <T extends MappedObject> T map(ByteBuffer bb) {
 		// any method that calls this method will have its call-site modified
 		throw new InternalError("type not registered");
@@ -167,7 +167,7 @@ public abstract class MappedObject {
 	 * This (required) notation might cause compiler warnings, which can be suppressed with @SuppressWarnings("static-access").<br>
 	 * Using Java 5.0's static-import on this method will break functionality.
 	 */
-	@SuppressWarnings("unused")
+	@SuppressWarnings("all")
 	public static <T extends MappedObject> T map(long address, int capacity) {
 		// any method that calls this method will have its call-site modified
 		throw new InternalError("type not registered");
@@ -182,7 +182,7 @@ public abstract class MappedObject {
 	 * This (required) notation might cause compiler warnings, which can be suppressed with @SuppressWarnings("static-access").<br>
 	 * Using Java 5.0's static-import on this method will break functionality.
 	 */
-	@SuppressWarnings("unused")
+	@SuppressWarnings("all")
 	public static <T extends MappedObject> T malloc(int elementCount) {
 		// any method that calls this method will have its call-site modified
 		throw new InternalError("type not registered");
@@ -228,7 +228,7 @@ public abstract class MappedObject {
 	 * Copies and amount of <code>SIZEOF - padding</code> bytes, from the current
 	 * mapped object, to the specified mapped object.
 	 */
-	@SuppressWarnings("unused")
+	@SuppressWarnings("all")
 	public final <T extends MappedObject> void copyTo(T target) {
 		// any method that calls this method will have its call-site modified
 		throw new InternalError("type not registered");
@@ -239,7 +239,7 @@ public abstract class MappedObject {
 	 * current mapped object, to the specified mapped object. Note that
 	 * this includes any padding bytes that are part of SIZEOF.
 	 */
-	@SuppressWarnings("unused")
+	@SuppressWarnings("all")
 	public final <T extends MappedObject> void copyRange(T target, int instances) {
 		// any method that calls this method will have its call-site modified
 		throw new InternalError("type not registered");
@@ -269,7 +269,7 @@ public abstract class MappedObject {
 		return new MappedForeach<T>(mapped, elementCount);
 	}
 
-	@SuppressWarnings("unused")
+	@SuppressWarnings("all")
 	public final <T extends MappedObject> T[] asArray() {
 		// any method that calls this method will have its call-site modified
 		throw new InternalError("type not registered");

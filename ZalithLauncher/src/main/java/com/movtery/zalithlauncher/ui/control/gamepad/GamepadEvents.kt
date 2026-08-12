@@ -33,8 +33,8 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.platform.LocalView
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.movtery.inputmap.keycodes.ControlEventKeycode
 import com.movtery.layer_controller.event.ClickEvent
+import com.movtery.zalithlauncher.game.keycodes.ControlEventKeycode
 import com.movtery.zalithlauncher.game.keycodes.mapToControlEvent
 import com.movtery.zalithlauncher.setting.AllSettings
 import com.movtery.zalithlauncher.ui.control.event.LAUNCHER_EVENT_SCROLL_DOWN_SINGLE
@@ -48,7 +48,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
-import kotlin.time.Duration.Companion.milliseconds
 
 /**
  * 简单的手柄摇杆、按键事件捕获层
@@ -141,7 +140,7 @@ fun SimpleGamepadCapture(
                     if (pollLevel == GamepadViewModel.PollLevel.Close) break
 
                     gamepadViewModel.pollJoystick()
-                    delay(pollLevel.delayMs.milliseconds)
+                    delay(pollLevel.delayMs)
                 } catch (_: CancellationException) {
                     break
                 }

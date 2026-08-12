@@ -30,7 +30,9 @@ import com.movtery.zalithlauncher.setting.enums.MirrorSourceType
 import com.movtery.zalithlauncher.ui.screens.content.download.assets.elements.DownloadAssetsState
 import com.movtery.zalithlauncher.ui.screens.content.download.assets.elements.SearchAssetsState
 import com.movtery.zalithlauncher.utils.isChinaMainland
-import com.movtery.zalithlauncher.utils.logging.Logger
+import com.movtery.zalithlauncher.utils.logging.Logger.lDebug
+import com.movtery.zalithlauncher.utils.logging.Logger.lError
+import com.movtery.zalithlauncher.utils.logging.Logger.lWarning
 import com.movtery.zalithlauncher.utils.network.isInterruptedIOException
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -42,8 +44,6 @@ import java.io.File
 import java.io.FileNotFoundException
 import java.io.IOException
 
-private const val TAG = "PlatformSearch"
-
 private val modrinthSearcher = ModrinthSearcher()
 private val mirrorModrinthSearcher = ModrinthSearcher(
     api = MCIM_MODRINTH_API,
@@ -53,6 +53,7 @@ private val mirrorModrinthSearcher = ModrinthSearcher(
 private val curseForgeSearcher = CurseForgeSearcher()
 private val mirrorCurseForgeSearcher = CurseForgeSearcher(
     api = MCIM_CURSEFORGE_API,
+    apiKey = null, //不向镜像源提供 api key
     source = "MCIM CurseForge"
 )
 
@@ -72,7 +73,7 @@ suspend fun <E: AbstractPlatformSearcher, T> mirroredPlatformSearcher(
     for (searcher in searchers) {
         try {
             if (printLog) {
-                Logger.debug(TAG, "Starting to attempt to perform the operation on source: {${searcher.source}}")
+                lDebug("Starting to attempt to perform the operation on source: {${searcher.source}}")
             }
             return block(searcher)
         } catch (e: Exception) {
@@ -91,7 +92,7 @@ suspend fun <E: AbstractPlatformSearcher, T> mirroredPlatformSearcher(
     }
 
     if (printLog) {
-        Logger.warning(TAG, 
+        lWarning(
             msg = "An error occurred during this search.",
             t = IOException("All sources have failed to attempt", lastException).apply {
                 errors.forEachIndexed { i, e ->
@@ -144,61 +145,39 @@ suspend fun searchAssets(
 ) {
     runCatching {
         val (containsChinese, englishKeywords) = searchFilter.searchName.localizedModSearchKeywords(platformClasses)
-        //参考源代码：[HMCL Github](https://github.com/HMCL-dev/HMCL/blob/d295e60/HMCL/src/main/java/org/jackhuang/hmcl/game/LocalizedRemoteModRepository.java#L56-L68)
-        //逐个英文短语尝试搜索，取第一个有非空结果的
-        val queries = if (!englishKeywords.isNullOrEmpty()) {
-            englishKeywords.toList()
-        } else {
-            listOf(searchFilter.searchName)
-        }
-
-        var lastResult: PlatformSearchResult? = null
-        var lastException: Exception? = null
-        for (query in queries) {
-            try {
-                val r = when (searchPlatform) {
-                    Platform.CURSEFORGE -> mirroredPlatformSearcher(
-                        searchers = mirroredCurseForgeSource(),
-                        printLog = false
-                    ) { searcher ->
-                        searcher.searchAssets(
-                            query = query,
-                            searchFilter = searchFilter,
-                            platformClasses = platformClasses
-                        )
-                    }
-                    Platform.MODRINTH -> mirroredPlatformSearcher(
-                        searchers = mirroredModrinthSource(),
-                        printLog = false
-                    ) { searcher ->
-                        searcher.searchAssets(
-                            query = query,
-                            searchFilter = searchFilter,
-                            platformClasses = platformClasses
-                        )
-                    }
-                }
-                lastResult = r
-                if (r.getAssetsPage(platformClasses).data.isNotEmpty()) break
-            } catch (e: Exception) {
-                //当前关键词搜索失败，记录异常并继续尝试下一个
-                lastException = e
+        val query = englishKeywords?.joinToString(" ") ?: searchFilter.searchName
+        val result = when (searchPlatform) {
+            Platform.CURSEFORGE -> mirroredPlatformSearcher(
+                searchers = mirroredCurseForgeSource()
+            ) { searcher ->
+                searcher.searchAssets(
+                    query = query,
+                    searchFilter = searchFilter,
+                    platformClasses = platformClasses
+                )
+            }
+            Platform.MODRINTH -> mirroredPlatformSearcher(
+                searchers = mirroredModrinthSource()
+            ) { searcher ->
+                searcher.searchAssets(
+                    query = query,
+                    searchFilter = searchFilter,
+                    platformClasses = platformClasses
+                )
             }
         }
-
-        val result = lastResult ?: throw lastException ?: IOException("Failed to search for all queries")
-
         onSuccess(
             if (containsChinese) result.processChineseSearchResults(searchFilter.searchName, platformClasses)
             else result
         )
     }.onFailure { e ->
         if (e !is CancellationException) {
-            Logger.error(TAG, "An exception occurred while searching for assets.", e)
-            val state = SearchAssetsState.Error(mapExceptionToMessage(e))
+            lError("An exception occurred while searching for assets.", e)
+            val pair = mapExceptionToMessage(e)
+            val state = SearchAssetsState.Error(pair.first, pair.second)
             onError(state)
         } else {
-            Logger.debug(TAG, "The search task has been cancelled.")
+            lWarning("The search task has been cancelled.")
         }
     }
 }
@@ -238,11 +217,12 @@ suspend fun <E> getVersions(
         onSuccess(result)
     }.onFailure { e ->
         if (e !is CancellationException) {
-            Logger.error(TAG, "An exception occurred while retrieving the project version.", e)
-            val state = DownloadAssetsState.Error<List<E>>(mapExceptionToMessage(e))
+            lError("An exception occurred while retrieving the project version.", e)
+            val pair = mapExceptionToMessage(e)
+            val state = DownloadAssetsState.Error<List<E>>(pair.first, pair.second)
             onError(state)
         } else {
-            Logger.debug(TAG, "The version retrieval task has been cancelled.")
+            lWarning("The version retrieval task has been cancelled.")
         }
     }
 }
@@ -270,11 +250,12 @@ suspend fun <E> getProject(
         onSuccess = onSuccess,
         onFailure = { e ->
             if (e !is CancellationException) {
-                Logger.error(TAG, "An exception occurred while retrieving project information.", e)
-                val state = DownloadAssetsState.Error<E>(mapExceptionToMessage(e))
+                lError("An exception occurred while retrieving project information.", e)
+                val pair = mapExceptionToMessage(e)
+                val state = DownloadAssetsState.Error<E>(pair.first, pair.second)
                 onError(state, e)
             } else {
-                Logger.debug(TAG, "The project retrieval task has been cancelled.")
+                lWarning("The project retrieval task has been cancelled.")
             }
         }
     )

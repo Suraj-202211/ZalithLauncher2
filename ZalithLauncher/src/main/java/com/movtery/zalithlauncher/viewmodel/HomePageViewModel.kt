@@ -38,7 +38,7 @@ import com.movtery.zalithlauncher.ui.components.SimpleAlertDialog
 import com.movtery.zalithlauncher.ui.screens.main.custom_home.MarkdownBlock
 import com.movtery.zalithlauncher.ui.screens.main.custom_home.parseMarkdownBlocks
 import com.movtery.zalithlauncher.utils.isInGreaterChina
-import com.movtery.zalithlauncher.utils.logging.Logger
+import com.movtery.zalithlauncher.utils.logging.Logger.lWarning
 import com.movtery.zalithlauncher.utils.network.fetchStringFromUrl
 import com.movtery.zalithlauncher.utils.string.isEmptyOrBlank
 import com.movtery.zalithlauncher.utils.string.toUuid
@@ -54,8 +54,6 @@ import kotlinx.coroutines.withContext
 import org.apache.commons.io.FileUtils
 import java.io.File
 import java.util.concurrent.TimeUnit
-
-private const val TAG = "HomePageVM"
 
 class HomePageViewModel : ViewModel() {
     private val nodeParser = CommonmarkAstNodeParser(
@@ -125,7 +123,7 @@ class HomePageViewModel : ViewModel() {
                     parseMarkdownBlocks(content, ::parseMarkdown)
                 }.onFailure { e ->
                     if (e is CancellationException) return@onFailure
-                    Logger.warning(TAG, "Failed to load the homepage from the local device!", e)
+                    lWarning("Failed to load the homepage from the local device!", e)
                 }.getOrDefault(emptyList())
             }
         } else {
@@ -157,7 +155,7 @@ class HomePageViewModel : ViewModel() {
                     overwrite = true //以防解压失败
                 )
             }.onFailure { e ->
-                Logger.warning(TAG, "Failed to extract the document homepage from Assets!", e)
+                lWarning("Failed to extract the document homepage from Assets!", e)
             }
             genJob = null
             reloadPage(true)
@@ -213,7 +211,7 @@ class HomePageViewModel : ViewModel() {
                 }
                 reloadPage(true)
             }.onFailure { e ->
-                Logger.warning(TAG, "Failed to save the homepage to the local file!", e)
+                lWarning("Failed to save the homepage to the local file!", e)
             }
 
             saveEditorJob = null
@@ -256,13 +254,13 @@ class HomePageViewModel : ViewModel() {
                 //同步记录当前的系统时间到时间标识文件
                 timeFile.writeText(System.currentTimeMillis().toString())
             }.onFailure { e ->
-                Logger.warning(TAG, "Failed to cache to local file!", e)
+                lWarning("Failed to cache to local file!", e)
             }
 
             parseMarkdownBlocks(content, ::parseMarkdown)
         }.getOrElse { e ->
             if (e is CancellationException) throw e
-            Logger.warning(TAG, "Failed to retrieve the homepage from the network!", e)
+            lWarning("Failed to retrieve the homepage from the network!", e)
 
             //如果远端加载失败，尝试回退到本地已有的缓存
             if (localFile.exists()) {
@@ -270,7 +268,7 @@ class HomePageViewModel : ViewModel() {
                     val content = localFile.readText()
                     parseMarkdownBlocks(content, ::parseMarkdown)
                 }.onFailure { e ->
-                    Logger.warning(TAG, "Failed to load the homepage from the cache!", e)
+                    lWarning("Failed to load the homepage from the cache!", e)
                 }.getOrDefault(emptyList())
             } else {
                 emptyList()

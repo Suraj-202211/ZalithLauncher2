@@ -25,7 +25,6 @@ import com.movtery.zalithlauncher.game.version.download.DownloadFailedException
 import com.movtery.zalithlauncher.game.version.download.DownloadTask
 import com.movtery.zalithlauncher.game.version.download.parseTo
 import com.movtery.zalithlauncher.game.versioninfo.models.GameManifest
-import com.movtery.zalithlauncher.ui.androidText
 import com.movtery.zalithlauncher.utils.file.formatFileSize
 import com.movtery.zalithlauncher.utils.network.withSpeedReport
 import kotlinx.coroutines.CancellationException
@@ -43,7 +42,6 @@ import kotlinx.coroutines.withContext
 import java.io.File
 import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.atomic.AtomicLong
-import kotlin.time.Duration.Companion.milliseconds
 
 /**
  * 游戏支持库下载器
@@ -79,8 +77,7 @@ class GameLibDownloader(
         val gameManifest = gameJson.parseTo(GameManifest::class.java)
 
         if (updateProgress) {
-            task.updateProgress(-1f)
-            task.updateMessage(androidText(R.string.minecraft_download_stat_download_task))
+            task.updateProgress(-1f, R.string.minecraft_download_stat_download_task)
         }
 
         //仅加载处理支持库
@@ -107,8 +104,7 @@ class GameLibDownloader(
         }
 
         //清除任务信息
-        task.updateProgress(1f)
-        task.updateMessage(null)
+        task.updateProgress(1f, null)
     }
 
     private suspend fun downloadAll(
@@ -135,16 +131,12 @@ class GameLibDownloader(
                     val currentFileSize = downloadedFileSize.get()
                     val totalFileSize = totalFileSize.get().run { if (this < currentFileSize) currentFileSize else this }
                     task.updateProgress(
-                        (currentFileSize.toFloat() / totalFileSize.toFloat()).coerceIn(0f, 1f)
+                        (currentFileSize.toFloat() / totalFileSize.toFloat()).coerceIn(0f, 1f),
+                        taskMessageRes,
+                        downloadedFileCount.get(), totalFileCount.get(), //文件个数
+                        formatFileSize(currentFileSize), formatFileSize(totalFileSize) //文件大小
                     )
-                    task.updateMessage(
-                        androidText(
-                            taskMessageRes,
-                            downloadedFileCount.get(), totalFileCount.get(), //文件个数
-                            formatFileSize(currentFileSize), formatFileSize(totalFileSize) //文件大小
-                        )
-                    )
-                    delay(100L.milliseconds)
+                    delay(100)
                 }
             }
 

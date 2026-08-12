@@ -33,14 +33,11 @@ import com.movtery.zalithlauncher.game.download.modpack.install.ModPackInfo
 import com.movtery.zalithlauncher.game.download.modpack.install.ModPackInfoTask
 import com.movtery.zalithlauncher.game.download.modpack.platform.PackPlatform
 import com.movtery.zalithlauncher.game.version.installed.VersionFolders
-import com.movtery.zalithlauncher.ui.androidText
 import com.movtery.zalithlauncher.utils.file.copyDirectoryContents
-import com.movtery.zalithlauncher.utils.logging.Logger
+import com.movtery.zalithlauncher.utils.logging.Logger.lWarning
 import java.io.File
 import java.io.FileNotFoundException
 import java.io.IOException
-
-private const val TAG = "CurseForgePack"
 
 /**
  * CurseForge 整合包安装信息
@@ -103,9 +100,9 @@ class CurseForgePack(
                             )
                         }.onFailure { e ->
                             when (e) {
-                                is FileNotFoundException -> Logger.warning(TAG, "Could not query api.curseforge.com for deleted mods: ${manifestFile.projectID}, ${manifestFile.fileID}", e)
-                                is IOException, is JsonParseException -> Logger.warning(TAG, "Unable to fetch the file name projectID=${manifestFile.projectID}, fileID=${manifestFile.fileID}", e)
-                                else -> Logger.warning(TAG, "Unable to fetch the file name projectID=${manifestFile.projectID}, fileID=${manifestFile.fileID}", e)
+                                is FileNotFoundException -> lWarning("Could not query api.curseforge.com for deleted mods: ${manifestFile.projectID}, ${manifestFile.fileID}", e)
+                                is IOException, is JsonParseException -> lWarning("Unable to fetch the file name projectID=${manifestFile.projectID}, fileID=${manifestFile.fileID}", e)
+                                else -> lWarning("Unable to fetch the file name projectID=${manifestFile.projectID}, fileID=${manifestFile.fileID}", e)
                             }
                         }.getOrThrow()
                     }
@@ -117,13 +114,9 @@ class CurseForgePack(
                 )
             }
             task.updateProgress(
-                index.toFloat() / totalCount.toFloat()
-            )
-            task.updateMessage(
-                androidText(
-                    R.string.download_modpack_install_get_mod_url,
-                    index, totalCount
-                )
+                percentage = index.toFloat() / totalCount.toFloat(),
+                message =  R.string.download_modpack_install_get_mod_url,
+                index, totalCount
             )
             modFile
         }
@@ -141,8 +134,7 @@ class CurseForgePack(
         }
 
         //提取覆盖包到目标目录
-        task.updateProgress(-1f)
-        task.updateMessage(androidText(R.string.download_modpack_install_overrides))
+        task.updateProgress(-1f, R.string.download_modpack_install_overrides)
         extractFiles(manifest.overrides ?: "overrides", targetFolder)
 
         return ModPackInfo(

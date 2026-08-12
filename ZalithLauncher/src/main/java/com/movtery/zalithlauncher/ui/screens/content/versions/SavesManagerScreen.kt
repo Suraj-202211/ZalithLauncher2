@@ -20,7 +20,6 @@ package com.movtery.zalithlauncher.ui.screens.content.versions
 
 import androidx.compose.animation.core.Animatable
 import androidx.compose.foundation.basicMarquee
-import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -40,13 +39,11 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LoadingIndicator
@@ -55,7 +52,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RichTooltip
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.scrollbar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -93,7 +89,6 @@ import com.movtery.zalithlauncher.game.version.saves.SaveData
 import com.movtery.zalithlauncher.game.version.saves.isCompatible
 import com.movtery.zalithlauncher.game.version.saves.parseLevelDatFile
 import com.movtery.zalithlauncher.game.version.saves.unpackSaveZip
-import com.movtery.zalithlauncher.ui.androidText
 import com.movtery.zalithlauncher.ui.base.BaseScreen
 import com.movtery.zalithlauncher.ui.components.CardTitleLayout
 import com.movtery.zalithlauncher.ui.components.ContentCheckBox
@@ -251,7 +246,6 @@ private fun rememberSavesManageViewModel(
     )
 }
 
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun SavesManagerScreen(
     mainScreenKey: TitledNavKey?,
@@ -475,10 +469,7 @@ private fun SavesActionsHeader(
                         submitError = submitError,
                         onImported = refreshSaves,
                         onFileCopied = { task, file ->
-                            task.updateProgress(-1f)
-                            task.updateMessage(androidText(
-                                R.string.saves_manage_import_unpacking, file.name
-                            ))
+                            task.updateProgress(-1f, R.string.saves_manage_import_unpacking, file.name)
                             unpackSaveZip(file, savesDir)
                         }
                     )
@@ -524,15 +515,10 @@ private fun SavesList(
 ) {
     savesList?.let { list ->
         if (list.isNotEmpty()) {
-            val scrollState = rememberLazyListState()
             LazyColumn(
-                modifier = modifier.scrollbar(
-                    state = scrollState.scrollIndicatorState,
-                    orientation = Orientation.Vertical,
-                ),
+                modifier = modifier,
                 contentPadding = PaddingValues(all = 12.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-                state = scrollState,
+                verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 items(list) { saveData ->
                     SaveItemLayout(

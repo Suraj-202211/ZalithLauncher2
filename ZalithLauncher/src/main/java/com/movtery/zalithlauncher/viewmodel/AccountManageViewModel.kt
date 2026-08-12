@@ -57,9 +57,6 @@ import com.movtery.zalithlauncher.game.account.yggdrasil.getFile
 import com.movtery.zalithlauncher.game.account.yggdrasil.getPlayerProfile
 import com.movtery.zalithlauncher.game.account.yggdrasil.uploadSkin
 import com.movtery.zalithlauncher.path.PathManager
-import com.movtery.zalithlauncher.ui.AndroidStringText
-import com.movtery.zalithlauncher.ui.androidText
-import com.movtery.zalithlauncher.ui.buildAppendedText
 import com.movtery.zalithlauncher.ui.screens.content.elements.AccountOperation
 import com.movtery.zalithlauncher.ui.screens.content.elements.AccountSkinOperation
 import com.movtery.zalithlauncher.ui.screens.content.elements.ChangeCape
@@ -69,12 +66,13 @@ import com.movtery.zalithlauncher.ui.screens.content.elements.LoginMenuOperation
 import com.movtery.zalithlauncher.ui.screens.content.elements.MicrosoftLoginOperation
 import com.movtery.zalithlauncher.ui.screens.content.elements.OtherLoginOperation
 import com.movtery.zalithlauncher.ui.screens.content.elements.ServerOperation
-import com.movtery.zalithlauncher.utils.logging.Logger
-import com.movtery.zalithlauncher.utils.network.toLocal
+import com.movtery.zalithlauncher.utils.logging.Logger.lError
+import com.movtery.zalithlauncher.utils.network.safeBodyAsJson
 import com.movtery.zalithlauncher.utils.string.getMessageOrToString
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import io.ktor.client.plugins.HttpRequestTimeoutException
+import io.ktor.http.HttpStatusCode
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -84,6 +82,9 @@ import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.jsonPrimitive
 import org.apache.commons.io.FileUtils
 import java.io.File
 import java.net.ConnectException
@@ -93,8 +94,6 @@ import java.util.UUID
 import javax.inject.Inject
 import io.ktor.client.plugins.ResponseException as KtorResponseException
 import kotlinx.coroutines.flow.combine as kotlinxCombine
-
-private const val TAG = "AccountManageVM"
 
 /**
  * 账号管理界面用户意图 (MVI Intent)
@@ -182,10 +181,14 @@ sealed interface AccountManageIntent {
  */
 sealed class AccountManageEffect {
     /** 在 UI 层显示错误信息对话框 */
-    data class ShowError(val title: AndroidStringText, val message: AndroidStringText) : AccountManageEffect()
+    data class ShowError(val title: String, val message: String) : AccountManageEffect()
 
     /** 在 UI 层显示 Toast 提示 */
-    data class ShowToast(val text: AndroidStringText, val duration: Int) : AccountManageEffect()
+    data class ShowToast(
+        val messageRes: Int,
+        val formatArgs: List<Any> = emptyList(),
+        val duration: Int = Toast.LENGTH_SHORT
+    ) : AccountManageEffect()
 }
 
 /**
@@ -390,8 +393,8 @@ class AccountManageViewModel @Inject constructor(
             }.onSuccess { isValid ->
                 if (!isValid) {
                     emitError(
-                        androidText(R.string.generic_warning),
-                        androidText(R.string.account_change_skin_invalid)
+                        context.getString(R.string.generic_warning),
+                        context.getString(R.string.account_change_skin_invalid)
                     )
                     return@onSuccess
                 }
@@ -411,8 +414,8 @@ class AccountManageViewModel @Inject constructor(
                 }
             }.onFailure { th ->
                 emitError(
-                    androidText(R.string.account_change_skin_failed_to_import),
-                    androidText(th.getMessageOrToString())
+                    context.getString(R.string.generic_error),
+                    context.getString(R.string.account_change_skin_failed_to_import) + "\r\n" + th.getMessageOrToString()
                 )
             }
 
@@ -423,7 +426,7 @@ class AccountManageViewModel @Inject constructor(
     }
 
     /** 内部方法：发送错误通知 */
-    private fun emitError(title: AndroidStringText, message: AndroidStringText) {
+    private fun emitError(title: String, message: String) {
         viewModelScope.launch(Dispatchers.Main) {
             _effect.send(AccountManageEffect.ShowError(title, message))
         }
@@ -431,11 +434,12 @@ class AccountManageViewModel @Inject constructor(
 
     /** 内部方法：发送 Toast 消息 */
     private fun emitToast(
-        text: AndroidStringText,
+        messageRes: Int,
+        vararg args: Any,
         duration: Int = Toast.LENGTH_SHORT
     ) {
         viewModelScope.launch(Dispatchers.Main) {
-            _effect.send(AccountManageEffect.ShowToast(text, duration))
+            _effect.send(AccountManageEffect.ShowToast(messageRes, args.toList(), duration))
         }
     }
 
@@ -447,7 +451,6 @@ class AccountManageViewModel @Inject constructor(
             intent.backToMain,
             intent.checkIfInWebScreen,
             { onIntent(AccountManageIntent.UpdateMicrosoftLoginOp(it)) },
-            showToast = ::emitToast,
             { emitError(it.title, it.message) }
         )
         onIntent(AccountManageIntent.UpdateMicrosoftLoginOp(MicrosoftLoginOperation.None))
@@ -479,16 +482,16 @@ class AccountManageViewModel @Inject constructor(
                     } else {
                         FileUtils.deleteQuietly(file)
                         emitError(
-                            androidText(R.string.generic_warning),
-                            androidText(R.string.account_change_skin_invalid)
+                            context.getString(R.string.generic_warning),
+                            context.getString(R.string.account_change_skin_invalid)
                         )
                     }
                 },
                 onError = { th ->
                     FileUtils.deleteQuietly(file)
                     emitError(
-                        androidText(R.string.account_change_skin_failed_to_import),
-                        androidText(th.getMessageOrToString())
+                        context.getString(R.string.generic_error),
+                        context.getString(R.string.account_change_skin_failed_to_import) + "\r\n" + th.getMessageOrToString()
                     )
                 }
             )
@@ -506,44 +509,38 @@ class AccountManageViewModel @Inject constructor(
                 dispatcher = Dispatchers.IO,
                 task = { task ->
                     executeWithAuthorization(block = {
-                        task.updateProgress(-1f)
-                        task.updateMessage(androidText(R.string.account_change_skin_uploading))
+                        task.updateProgress(-1f, R.string.account_change_skin_uploading)
                         uploadSkin(MINECRAFT_SERVICES_URL, account.accessToken, skinFile, skinModel)
                     }, onRefreshRequest = {
                         account.refreshMicrosoft(task = task, coroutineContext = coroutineContext)
                         AccountsManager.suspendSaveAccount(account)
                     })
 
-                    task.updateMessage(androidText(R.string.account_change_skin_update_local))
-                    runCatching {
-                        account.downloadYggdrasil()
-                    }.onFailure { th ->
+                    task.updateMessage(R.string.account_change_skin_update_local)
+                    runCatching { account.downloadYggdrasil() }.onFailure { th ->
                         emitError(
-                            androidText(R.string.account_logging_in_failed),
+                            context.getString(R.string.account_logging_in_failed),
                             formatAccountError(th)
                         )
                     }
 
                     emitToast(
-                        androidText(R.string.account_change_skin_update_toast),
+                        R.string.account_change_skin_update_toast,
                         duration = Toast.LENGTH_LONG
                     )
                 },
                 onError = { th ->
-                    if (th is KtorResponseException) {
-                        emitError(
-                            androidText(
-                                R.string.account_change_skin_failed_to_upload,
-                                th.response.status.value
-                            ),
-                            th.toLocal()
-                        )
+                    val (title, msg) = if (th is KtorResponseException) {
+                        val body = th.response.safeBodyAsJson<JsonObject>()
+                        context.getString(
+                            R.string.account_change_skin_failed_to_upload,
+                            th.response.status.value
+                        ) to (body["errorMessage"]?.jsonPrimitive?.contentOrNull
+                            ?: th.getMessageOrToString())
                     } else {
-                        emitError(
-                            androidText(R.string.generic_error),
-                            formatAccountError(th)
-                        )
+                        context.getString(R.string.generic_error) to formatAccountError(th)
                     }
+                    emitError(title, msg)
                 }
             )
         )
@@ -557,11 +554,9 @@ class AccountManageViewModel @Inject constructor(
                 dispatcher = Dispatchers.IO,
                 task = { task ->
                     executeWithAuthorization(block = {
-                        task.updateProgress(-1f)
-                        task.updateMessage(androidText(R.string.account_change_cape_fetch_all))
+                        task.updateProgress(-1f, R.string.account_change_cape_fetch_all)
                         val profile = getPlayerProfile(MINECRAFT_SERVICES_URL, account.accessToken)
-                        task.updateProgress(-1f)
-                        task.updateMessage(androidText(R.string.account_change_cape_cache_all))
+                        task.updateProgress(-1f, R.string.account_change_cape_cache_all)
                         cacheAllCapes(profile)
                         //同时更新本地的皮肤/披风
                         account.downloadYggdrasil()
@@ -573,8 +568,8 @@ class AccountManageViewModel @Inject constructor(
                 },
                 onError = { th ->
                     emitError(
-                        androidText(R.string.account_change_cape_fetch_all_failed),
-                        androidText(th.getMessageOrToString())
+                        context.getString(R.string.generic_error),
+                        context.getString(R.string.account_change_cape_fetch_all_failed) + "\r\n" + th.getMessageOrToString()
                     )
                 }
             )
@@ -594,7 +589,7 @@ class AccountManageViewModel @Inject constructor(
                 dispatcher = Dispatchers.IO,
                 task = { task ->
                     executeWithAuthorization(block = {
-                        task.updateMessage(androidText(R.string.account_change_cape_apply))
+                        task.updateMessage(R.string.account_change_cape_apply)
                         changeCape(
                             MINECRAFT_SERVICES_URL,
                             account.accessToken,
@@ -634,34 +629,26 @@ class AccountManageViewModel @Inject constructor(
                         }
                     }
 
-                    if (isReset) emitToast(androidText(R.string.account_change_cape_apply_reset))
+                    if (isReset) emitToast(R.string.account_change_cape_apply_reset)
                     else emitToast(
-                        buildAppendedText {
-                            append(R.string.account_change_cape_apply_success)
-                            val capeLocal = cape.capeLocalRes()
-                            if (capeLocal == null) {
-                                append(cape.alias)
-                            } else {
-                                append(capeLocal)
-                            }
-                        }
+                        R.string.account_change_cape_apply_success,
+                        cape.capeLocalRes()?.let {
+                            context.getString(it)
+                        } ?: cape.alias
                     )
                 },
                 onError = { th ->
-                    if (th is KtorResponseException) {
-                        emitError(
-                            androidText(
-                                R.string.account_change_cape_apply_failed,
-                                th.response.status.value
-                            ),
-                            th.toLocal()
-                        )
+                    val (title, msg) = if (th is KtorResponseException) {
+                        val body = th.response.safeBodyAsJson<JsonObject>()
+                        context.getString(
+                            R.string.account_change_cape_apply_failed,
+                            th.response.status.value
+                        ) to (body["errorMessage"]?.jsonPrimitive?.contentOrNull
+                            ?: th.getMessageOrToString())
                     } else {
-                        emitError(
-                            androidText(R.string.generic_error),
-                            formatAccountError(th)
-                        )
+                        context.getString(R.string.generic_error) to formatAccountError(th)
                     }
+                    emitError(title, msg)
                 }
             )
         )
@@ -676,7 +663,7 @@ class AccountManageViewModel @Inject constructor(
     /** 第三方 Yggdrasil 服务器登录 */
     private fun loginWithOtherServer(intent: AccountManageIntent.LoginWithOtherServer) {
         AuthServerHelper(intent.server, intent.email, intent.pass, onSuccess = { account, task ->
-            task.updateMessage(androidText(R.string.account_logging_in_saving))
+            task.updateMessage(R.string.account_logging_in_saving)
             account.downloadYggdrasil()
             AccountsManager.suspendSaveAccount(account)
         }, onFailed = {
@@ -734,8 +721,8 @@ class AccountManageViewModel @Inject constructor(
                 )
             } else {
                 emitError(
-                    androidText(R.string.generic_warning),
-                    androidText(R.string.account_change_skin_invalid)
+                    context.getString(R.string.generic_warning),
+                    context.getString(R.string.account_change_skin_invalid)
                 )
                 onIntent(
                     AccountManageIntent.UpdateAccountSkinOp(
@@ -745,7 +732,7 @@ class AccountManageViewModel @Inject constructor(
             }
         }, onError = { th ->
             FileUtils.deleteQuietly(file)
-            emitError(androidText(R.string.error_import_image), androidText(th.getMessageOrToString()))
+            emitError(context.getString(R.string.error_import_image), th.getMessageOrToString())
             AccountsManager.refreshWardrobe()
             onIntent(
                 AccountManageIntent.UpdateAccountSkinOp(
@@ -779,20 +766,28 @@ class AccountManageViewModel @Inject constructor(
      * @param th 捕获的异常
      * @return 格式化后的错误提示
      */
-    fun formatAccountError(th: Throwable): AndroidStringText = when (th) {
-        is NotPurchasedMinecraftException -> toLocal()
-        is MinecraftProfileException -> th.toLocal()
-        is XboxLoginException -> th.toLocal()
-        is HttpRequestTimeoutException -> androidText(R.string.error_timeout)
-        is UnknownHostException, is UnresolvedAddressException -> androidText(R.string.error_network_unreachable)
-        is ConnectException -> androidText(R.string.error_connection_failed)
-        is KtorResponseException -> th.toLocal()
-        is ResponseException -> androidText(th.responseMessage)
+    fun formatAccountError(th: Throwable): String = when (th) {
+        is NotPurchasedMinecraftException -> toLocal(context)
+        is MinecraftProfileException -> th.toLocal(context)
+        is XboxLoginException -> th.toLocal(context)
+        is HttpRequestTimeoutException -> context.getString(R.string.error_timeout)
+        is UnknownHostException, is UnresolvedAddressException -> context.getString(R.string.error_network_unreachable)
+        is ConnectException -> context.getString(R.string.error_connection_failed)
+        is KtorResponseException -> {
+            val res = when (th.response.status) {
+                HttpStatusCode.Unauthorized -> R.string.error_unauthorized
+                HttpStatusCode.NotFound -> R.string.error_notfound
+                else -> R.string.error_client_error
+            }
+            context.getString(res, th.response.status.value)
+        }
+
+        is ResponseException -> th.responseMessage
         else -> {
-            Logger.error(TAG, "An unknown exception was caught!", th)
-            androidText(
+            lError("An unknown exception was caught!", th)
+            val errorMessage =
                 th.localizedMessage ?: th.message ?: th::class.qualifiedName ?: "Unknown error"
-            )
+            context.getString(R.string.error_unknown, errorMessage)
         }
     }
 }

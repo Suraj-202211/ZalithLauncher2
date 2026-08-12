@@ -19,20 +19,19 @@
 package com.movtery.zalithlauncher.coroutine
 
 import androidx.annotation.DrawableRes
-import com.movtery.zalithlauncher.ui.AndroidStringText
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 
 data class TitledTask(
-    val title: AndroidStringText,
+    val title: String,
     @field:DrawableRes
     val runningIcon: Int? = null,
     val task: Task
 )
 
 fun MutableList<TitledTask>.addTask(
-    title: AndroidStringText,
+    title: String,
     @DrawableRes
     icon: Int? = null,
     id: String? = null,
@@ -49,7 +48,7 @@ fun MutableList<TitledTask>.addTask(
 }
 
 fun MutableList<TitledTask>.addTask(
-    title: AndroidStringText,
+    title: String,
     @DrawableRes
     icon: Int? = null,
     task: Task

@@ -75,12 +75,10 @@ import com.movtery.zalithlauncher.game.version.download.DownloadFailedException
 import com.movtery.zalithlauncher.game.version.installed.Version
 import com.movtery.zalithlauncher.game.version.installed.VersionsManager
 import com.movtery.zalithlauncher.notification.NotificationManager
-import com.movtery.zalithlauncher.ui.androidText
 import com.movtery.zalithlauncher.ui.base.BaseScreen
 import com.movtery.zalithlauncher.ui.components.MarqueeText
 import com.movtery.zalithlauncher.ui.components.NotificationCheck
 import com.movtery.zalithlauncher.ui.components.fadeEdge
-import com.movtery.zalithlauncher.ui.components.verticalScrollWithBar
 import com.movtery.zalithlauncher.ui.screens.NestedNavKey
 import com.movtery.zalithlauncher.ui.screens.NormalNavKey
 import com.movtery.zalithlauncher.ui.screens.TitledNavKey
@@ -100,13 +98,11 @@ import com.movtery.zalithlauncher.ui.screens.content.versions.VersionOverViewScr
 import com.movtery.zalithlauncher.ui.screens.navigateOnce
 import com.movtery.zalithlauncher.ui.screens.onBack
 import com.movtery.zalithlauncher.ui.screens.rememberTransitionSpec
-import com.movtery.zalithlauncher.ui.theme.showThemed
 import com.movtery.zalithlauncher.utils.animation.swapAnimateDpAsState
-import com.movtery.zalithlauncher.utils.logging.Logger
+import com.movtery.zalithlauncher.utils.logging.Logger.lError
 import com.movtery.zalithlauncher.viewmodel.ErrorViewModel
 import com.movtery.zalithlauncher.viewmodel.EventViewModel
 import com.movtery.zalithlauncher.viewmodel.ScreenBackStackViewModel
-import com.movtery.zalithlauncher.viewmodel.sendToast
 import io.ktor.client.plugins.HttpRequestTimeoutException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -115,9 +111,6 @@ import java.net.ConnectException
 import java.net.SocketTimeoutException
 import java.net.UnknownHostException
 import java.nio.channels.UnresolvedAddressException
-import java.util.concurrent.TimeoutException
-
-private const val TAG = "VersionSettings"
 
 /** 更新加载器状态操作 */
 private sealed interface UpdateLoaderOperation {
@@ -160,7 +153,7 @@ private class UpdateLoaderViewModel: ViewModel() {
                             .setPositiveButton(R.string.generic_confirm) { dialog, _ ->
                                 dialog.dismiss()
                             }
-                            .showThemed()
+                            .show()
                     }
                 },
                 onError = { th ->
@@ -209,8 +202,8 @@ fun VersionSettingsScreen(
 
     val cBackToMainScreen by rememberUpdatedState(backToMainScreen)
     DisposableEffect(key) {
-        val listener = object : suspend () -> Unit {
-            override suspend fun invoke() {
+        val listener = object : suspend (List<Version>) -> Unit {
+            override suspend fun invoke(versions: List<Version>) {
                 cBackToMainScreen()
             }
         }
@@ -328,9 +321,9 @@ private fun TabMenu(
                 onClick = {
                     if (item.key == NormalNavKey.Versions.UpdateLoader) {
                         if (isUpdateLoader) {
-                            NormalNavKey.Versions.UpdateLoader.title = androidText(R.string.versions_update_loader)
+                            NormalNavKey.Versions.UpdateLoader.title = R.string.versions_update_loader
                         } else {
-                            NormalNavKey.Versions.UpdateLoader.title = androidText(R.string.versions_install_loader)
+                            NormalNavKey.Versions.UpdateLoader.title = R.string.versions_install_loader
                         }
                     }
                     backStack.navigateOnce(item.key)
@@ -341,10 +334,10 @@ private fun TabMenu(
                 label = {
                     val text = if (item.key == NormalNavKey.Versions.UpdateLoader) {
                         if (isUpdateLoader) {
-                            NormalNavKey.Versions.UpdateLoader.title = androidText(R.string.versions_update_loader)
+                            NormalNavKey.Versions.UpdateLoader.title = R.string.versions_update_loader
                             stringResource(item.textRes)
                         } else {
-                            NormalNavKey.Versions.UpdateLoader.title = androidText(R.string.versions_install_loader)
+                            NormalNavKey.Versions.UpdateLoader.title = R.string.versions_install_loader
                             stringResource(R.string.versions_install_loader)
                         }
                     } else {
@@ -419,9 +412,6 @@ private fun NavigationUI(
                                 EventViewModel.Event.VulkanCheck
                             )
                         },
-                        showToast = { text ->
-                            eventViewModel.sendToast(text)
-                        },
                         submitError = submitError
                     )
                 }
@@ -456,9 +446,12 @@ private fun NavigationUI(
                             )
                         },
                         onSwapMoreInfo = { projectId, platform ->
-                            backScreenViewModel.mainScreen.removeAndNavigateTo(
-                                NestedNavKey.AssetInfo::class,
-                                NestedNavKey.AssetInfo(platform, projectId, PlatformClasses.MOD)
+                            backScreenViewModel.navigateToDownload(
+                                targetScreen = backScreenViewModel.downloadModScreen.apply {
+                                    navigateTo(
+                                        NormalNavKey.DownloadAssets(platform, projectId, PlatformClasses.MOD)
+                                    )
+                                }
                             )
                         },
                         eventViewModel = eventViewModel,
@@ -521,7 +514,6 @@ private fun NavigationUI(
                         versionsScreenKey = versionsScreenKey,
                         version = version,
                         backToMainScreen = backToMainScreen,
-                        eventViewModel = eventViewModel,
                         submitError = submitError
                     )
                 }
@@ -586,7 +578,7 @@ private fun UpdateLoaderOperation(
                     Column(
                         modifier = Modifier
                             .fadeEdge(state = scrollState)
-                            .verticalScrollWithBar(state = scrollState),
+                            .verticalScroll(state = scrollState),
                         verticalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
                         Text(text = stringResource(R.string.versions_update_loader_diff_message))
@@ -641,9 +633,9 @@ private fun UpdateLoaderOperation(
         }
         is UpdateLoaderOperation.Error -> {
             val th = operation.th
-            Logger.error(TAG, "Failed to download the game!", th)
+            lError("Failed to download the game!", th)
             val message = when (th) {
-                is HttpRequestTimeoutException, is SocketTimeoutException, is TimeoutException -> stringResource(R.string.error_timeout)
+                is HttpRequestTimeoutException, is SocketTimeoutException -> stringResource(R.string.error_timeout)
                 is UnknownHostException, is UnresolvedAddressException -> stringResource(R.string.error_network_unreachable)
                 is ConnectException -> stringResource(R.string.error_connection_failed)
                 is SerializationException, is JsonSyntaxException -> stringResource(R.string.error_parse_failed)
@@ -651,7 +643,8 @@ private fun UpdateLoaderOperation(
                 is JvmCrashException -> stringResource(R.string.download_install_error_jvm_crash, th.code)
                 is DownloadFailedException -> stringResource(R.string.download_install_error_download_failed)
                 else -> {
-                    th.localizedMessage ?: th.message ?: th::class.qualifiedName ?: "Unknown error"
+                    val errorMessage = th.localizedMessage ?: th.message ?: th::class.qualifiedName ?: "Unknown error"
+                    stringResource(R.string.error_unknown, errorMessage)
                 }
             }
             val dismiss = {
@@ -667,7 +660,7 @@ private fun UpdateLoaderOperation(
                     Column(
                         modifier = Modifier
                             .fadeEdge(state = scrollState)
-                            .verticalScrollWithBar(state = scrollState),
+                            .verticalScroll(state = scrollState),
                         verticalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
                         Text(text = stringResource(R.string.versions_update_loader_error_message))

@@ -23,7 +23,7 @@ package com.movtery.zalithlauncher.utils.logging
  */
 data class LogMessage(
     val time: Long,
-    val tag: String,
+    val caller: String?,
     val level: Level,
     val message: String,
     val throwable: Throwable?

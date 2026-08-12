@@ -21,10 +21,8 @@ package com.movtery.zalithlauncher.game.download.modpack.platform.mcbbs
 import com.movtery.zalithlauncher.game.download.modpack.platform.AbstractPack
 import com.movtery.zalithlauncher.game.download.modpack.platform.PackPlatform
 import com.movtery.zalithlauncher.game.download.modpack.platform.SimplePackParser
-import com.movtery.zalithlauncher.utils.logging.Logger
+import com.movtery.zalithlauncher.utils.logging.Logger.lDebug
 import java.io.File
-
-private const val TAG = "MCBBSPackMetaParser"
 
 /**
  * MCBBS 整合包解析器，尝试解析 mcbbs.packmeta 来解析这个整合包
@@ -43,7 +41,7 @@ object MCBBSPackMetaParser : SimplePackParser<MCBBSManifest>(
         val result = runCatching {
             super.parse(packFolder)
         }.onFailure { th ->
-            Logger.debug(TAG, "${getIdentifier()}: Failed to parse the modpack using \"mcbbs.packmeta\", trying \"manifest.json\" instead.", th)
+            lDebug("${getIdentifier()}: Failed to parse the modpack using \"mcbbs.packmeta\", trying \"manifest.json\" instead.", th)
         }.getOrNull() ?: run {
             //如果无法使用 mcbbs.packmeta 解析，则尝试使用 manifest.json
             MCBBSPackManifestParser.parse(packFolder)

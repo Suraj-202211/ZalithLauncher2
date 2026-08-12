@@ -20,7 +20,6 @@ package com.movtery.zalithlauncher.ui.screens.content.download.game
 
 import androidx.compose.animation.core.Animatable
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -38,7 +37,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -47,7 +45,6 @@ import androidx.compose.material3.LinearWavyProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.scrollbar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -59,7 +56,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.res.painterResource
@@ -75,11 +71,7 @@ import com.movtery.zalithlauncher.R
 import com.movtery.zalithlauncher.game.versioninfo.MinecraftVersion
 import com.movtery.zalithlauncher.game.versioninfo.MinecraftVersions
 import com.movtery.zalithlauncher.game.versioninfo.models.isType
-import com.movtery.zalithlauncher.setting.AllSettings
-import com.movtery.zalithlauncher.ui.AndroidStringText
-import com.movtery.zalithlauncher.ui.androidText
 import com.movtery.zalithlauncher.ui.base.BaseScreen
-import com.movtery.zalithlauncher.ui.buildAppendedText
 import com.movtery.zalithlauncher.ui.components.CheckChip
 import com.movtery.zalithlauncher.ui.components.EdgeDirection
 import com.movtery.zalithlauncher.ui.components.LittleTextLabel
@@ -89,26 +81,24 @@ import com.movtery.zalithlauncher.ui.components.fadeEdge
 import com.movtery.zalithlauncher.ui.screens.NestedNavKey
 import com.movtery.zalithlauncher.ui.screens.NormalNavKey
 import com.movtery.zalithlauncher.ui.screens.TitledNavKey
-import com.movtery.zalithlauncher.ui.screens.content.elements.backgroundGlass
 import com.movtery.zalithlauncher.ui.theme.cardColor
 import com.movtery.zalithlauncher.ui.theme.onCardColor
 import com.movtery.zalithlauncher.utils.animation.getAnimateTween
 import com.movtery.zalithlauncher.utils.animation.swapAnimateDpAsState
 import com.movtery.zalithlauncher.utils.classes.Quadruple
 import com.movtery.zalithlauncher.utils.formatDate
-import com.movtery.zalithlauncher.utils.logging.Logger
-import com.movtery.zalithlauncher.utils.network.toLocal
+import com.movtery.zalithlauncher.utils.logging.Logger.lError
+import com.movtery.zalithlauncher.utils.logging.Logger.lWarning
 import com.movtery.zalithlauncher.utils.string.isEmptyOrBlank
 import com.movtery.zalithlauncher.viewmodel.EventViewModel
 import io.ktor.client.plugins.HttpRequestTimeoutException
 import io.ktor.client.plugins.ResponseException
+import io.ktor.http.HttpStatusCode
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import java.net.ConnectException
 import java.net.UnknownHostException
 import java.nio.channels.UnresolvedAddressException
-
-private const val TAG = "SelectGameVersion"
 
 /** 版本列表加载状态 */
 private sealed interface VersionState {
@@ -117,7 +107,28 @@ private sealed interface VersionState {
     /** 加载完成 */
     data class None(val versions: List<MinecraftVersion>) : VersionState
     /** 加载出现异常 */
-    data class Failure(val message: AndroidStringText) : VersionState
+    data class Failure(val message: Int, val args: Array<Any>? = null) : VersionState {
+        override fun equals(other: Any?): Boolean {
+            if (this === other) return true
+            if (javaClass != other?.javaClass) return false
+
+            other as Failure
+
+            if (message != other.message) return false
+            if (args != null) {
+                if (other.args == null) return false
+                if (!args.contentEquals(other.args)) return false
+            } else if (other.args != null) return false
+
+            return true
+        }
+
+        override fun hashCode(): Int {
+            var result = message
+            result = 31 * result + (args?.contentHashCode() ?: 0)
+            return result
+        }
+    }
 }
 
 /**
@@ -161,18 +172,27 @@ private class VersionsViewModel: ViewModel() {
                 val allVersions = MinecraftVersions.allVersions.value
                 VersionState.None(allVersions.filterVersions(versionFilter))
             }.getOrElse { e ->
-                Logger.warning(TAG, "Failed to get version manifest!", e)
-                val message: AndroidStringText = when(e) {
-                    is HttpRequestTimeoutException -> androidText(R.string.error_timeout)
-                    is UnknownHostException, is UnresolvedAddressException -> androidText(R.string.error_network_unreachable)
-                    is ConnectException -> androidText(R.string.error_connection_failed)
-                    is ResponseException -> e.toLocal()
+                lWarning("Failed to get version manifest!", e)
+                val message: Pair<Int, Array<Any>?> = when(e) {
+                    is HttpRequestTimeoutException -> R.string.error_timeout to null
+                    is UnknownHostException, is UnresolvedAddressException -> R.string.error_network_unreachable to null
+                    is ConnectException -> R.string.error_connection_failed to null
+                    is ResponseException -> {
+                        val statusCode = e.response.status
+                        val res = when (statusCode) {
+                            HttpStatusCode.Unauthorized -> R.string.error_unauthorized
+                            HttpStatusCode.NotFound -> R.string.error_notfound
+                            else -> R.string.error_client_error
+                        }
+                        res to arrayOf(statusCode)
+                    }
                     else -> {
-                        Logger.error(TAG, "An unknown exception was caught!", e)
-                        androidText(e.localizedMessage ?: e.message ?: e::class.qualifiedName ?: "Unknown error")
+                        lError("An unknown exception was caught!", e)
+                        val errorMessage = e.localizedMessage ?: e.message ?: e::class.qualifiedName ?: "Unknown error"
+                        R.string.error_unknown to arrayOf(errorMessage)
                     }
                 }
-                VersionState.Failure(message)
+                VersionState.Failure(message.first, message.second)
             }
         }
     }
@@ -233,16 +253,15 @@ fun SelectGameVersionScreen(
 
                 is VersionState.Failure -> {
                     Box(Modifier.fillMaxSize()) {
+                        val message = if (state.args != null) {
+                            stringResource(state.message, *state.args)
+                        } else {
+                            stringResource(state.message)
+                        }
+
                         ScalingLabel(
                             modifier = Modifier.align(Alignment.Center),
-                            text = {
-                                AndroidStringText(
-                                    text = buildAppendedText {
-                                        append(R.string.download_game_failed_to_get_versions)
-                                        append(state.message)
-                                    }
-                                )
-                            },
+                            text = stringResource(R.string.download_game_failed_to_get_versions, message),
                             onClick = {
                                 viewModel.refresh(true)
                             }
@@ -267,6 +286,8 @@ fun SelectGameVersionScreen(
 
                         VersionList(
                             modifier = Modifier.weight(1f),
+                            itemContainerColor = cardColor(),
+                            itemContentColor = onCardColor(),
                             versions = state.versions,
                             onVersionSelect = onVersionSelect,
                             openLink = { url ->
@@ -416,18 +437,15 @@ private fun VersionTypeItem(
 @Composable
 private fun VersionList(
     modifier: Modifier = Modifier,
+    itemContainerColor: Color,
+    itemContentColor: Color,
     versions: List<MinecraftVersion>,
     onVersionSelect: (String) -> Unit,
     openLink: (url: String) -> Unit
 ) {
-    val scrollState = rememberLazyListState()
     LazyColumn(
-        modifier = modifier.scrollbar(
-            state = scrollState.scrollIndicatorState,
-            orientation = Orientation.Vertical,
-        ),
-        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
-        state = scrollState,
+        modifier = modifier,
+        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
     ) {
         items(versions) { version ->
             VersionItemLayout(
@@ -441,6 +459,8 @@ private fun VersionList(
                 onAccessWiki = { wikiUrl ->
                     openLink(wikiUrl)
                 },
+                color = itemContainerColor,
+                contentColor = itemContentColor
             )
         }
     }
@@ -452,11 +472,8 @@ private fun VersionItemLayout(
     version: MinecraftVersion,
     onClick: () -> Unit = {},
     onAccessWiki: (String) -> Unit = {},
-    shape: Shape = MaterialTheme.shapes.large,
-    influencedByBackground: Boolean = true,
-    color: Color = cardColor(influencedByBackground),
-    contentColor: Color = onCardColor(),
-    blur: Int = AllSettings.backgroundBlur.state,
+    color: Color,
+    contentColor: Color,
 ) {
     val scale = remember { Animatable(initialValue = 0.95f) }
     LaunchedEffect(Unit) {
@@ -468,14 +485,13 @@ private fun VersionItemLayout(
     Surface(
         modifier = modifier.graphicsLayer(scaleY = scale.value, scaleX = scale.value),
         onClick = onClick,
-        shape = shape,
+        shape = MaterialTheme.shapes.large,
         color = color,
         contentColor = contentColor
     ) {
         Row(
             modifier = Modifier
-                .clip(shape = shape)
-                .backgroundGlass(blur, color, influencedByBackground)
+                .clip(shape = MaterialTheme.shapes.large)
                 .padding(all = 12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {

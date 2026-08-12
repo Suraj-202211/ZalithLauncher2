@@ -28,7 +28,6 @@ import com.movtery.zalithlauncher.game.addons.modloader.optifine.OptiFineVersion
 import com.movtery.zalithlauncher.game.addons.modloader.optifine.OptiFineVersions
 import com.movtery.zalithlauncher.setting.AllSettings
 import com.movtery.zalithlauncher.setting.enums.MirrorSourceType
-import com.movtery.zalithlauncher.ui.androidText
 import com.movtery.zalithlauncher.utils.isChinaMainland
 import com.movtery.zalithlauncher.utils.network.downloadFileSuspend
 import com.movtery.zalithlauncher.utils.network.withSpeedReport
@@ -60,16 +59,10 @@ fun getOptiFineDownloadTask(
         id = OPTIFINE_DOWNLOAD_ID,
         dispatcher = Dispatchers.IO,
         task = { task ->
-            task.updateProgress(-1f)
-            task.updateMessage(androidText(
-                R.string.download_game_install_optifine_fetch_download_url, optifine.realVersion
-            ))
+            task.updateProgress(-1f, R.string.download_game_install_optifine_fetch_download_url, optifine.realVersion)
             val optifineUrl = getOFUrlMirrorable(optifine)
 
-            task.updateProgress(-1f)
-            task.updateMessage(androidText(
-                R.string.download_game_install_base_download_file, ModLoader.OPTIFINE.displayName, optifine.realVersion
-            ))
+            task.updateProgress(-1f, R.string.download_game_install_base_download_file, ModLoader.OPTIFINE.displayName, optifine.realVersion)
             withSpeedReport(
                 onSpeedReport = { bytes ->
                     task.updateSpeed(bytes)
@@ -95,17 +88,11 @@ fun getOptiFineModsDownloadTask(
         id = OPTIFINE_DOWNLOAD_ID,
         dispatcher = Dispatchers.IO,
         task = { task ->
-            task.updateProgress(-1f)
-            task.updateMessage(androidText(
-                R.string.download_game_install_optifine_fetch_download_url, optifine.realVersion
-            ))
+            task.updateProgress(-1f, R.string.download_game_install_optifine_fetch_download_url, optifine.realVersion)
             val optifineUrl = getOFUrlMirrorable(optifine)
 
             //开始下载为 Mod
-            task.updateProgress(-1f)
-            task.updateMessage(androidText(
-                R.string.download_game_install_base_download_file, ModLoader.OPTIFINE.displayName, optifine.realVersion
-            ))
+            task.updateProgress(-1f, R.string.download_game_install_base_download_file, ModLoader.OPTIFINE.displayName, optifine.realVersion)
             withSpeedReport(
                 onSpeedReport = { bytes ->
                     task.updateSpeed(bytes)

@@ -27,7 +27,8 @@ import com.movtery.zalithlauncher.path.URL_USER_AGENT
 import com.movtery.zalithlauncher.setting.AllSettings
 import com.movtery.zalithlauncher.setting.enums.MirrorSourceType
 import com.movtery.zalithlauncher.utils.isChinaMainland
-import com.movtery.zalithlauncher.utils.logging.Logger
+import com.movtery.zalithlauncher.utils.logging.Logger.lDebug
+import com.movtery.zalithlauncher.utils.logging.Logger.lWarning
 import com.movtery.zalithlauncher.utils.network.safeBodyAsJson
 import com.movtery.zalithlauncher.utils.network.safeBodyAsText
 import com.movtery.zalithlauncher.utils.network.withRetry
@@ -109,16 +110,17 @@ object ForgeVersions {
         } catch (e: ClientRequestException) {
             val statusCode = e.response.status
             if (statusCode == HttpStatusCode.NotFound) {
-                Logger.debug(TAG, "Not found.")
+                lDebug("Not found.")
                 null
             } else {
                 throw e
             }
         } catch (_: CancellationException) {
-            Logger.debug(TAG, "Client cancelled.")
+            lDebug("Client cancelled.")
             null
         } catch (e: Exception) {
-            throw RuntimeException("Failed to fetch forge list! url: $url", e)
+            lWarning("Failed to fetch forge list!", e)
+            throw e
         }
     }
 
@@ -159,16 +161,17 @@ object ForgeVersions {
         } catch (e: ClientRequestException) {
             val statusCode = e.response.status
             if (statusCode == HttpStatusCode.NotFound) {
-                Logger.debug(TAG, "Not found.")
+                lDebug("Not found.")
                 null
             } else {
                 throw e
             }
         } catch (_: CancellationException) {
-            Logger.debug(TAG, "Client cancelled.")
+            lDebug("Client cancelled.")
             null
         } catch (e: Exception) {
-            throw RuntimeException("Failed to fetch forge list! url: $url", e)
+            lWarning("Failed to fetch forge list!", e)
+            throw e
         }
     }
 

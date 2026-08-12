@@ -19,7 +19,6 @@
 package com.movtery.zalithlauncher.ui.screens.content.settings
 
 import androidx.compose.animation.core.Animatable
-import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -40,12 +39,11 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
-import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -55,7 +53,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.scrollbar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -101,7 +98,6 @@ import com.movtery.zalithlauncher.game.control.ControlManager
 import com.movtery.zalithlauncher.path.PathManager
 import com.movtery.zalithlauncher.setting.AllSettings
 import com.movtery.zalithlauncher.ui.activities.startEditorActivity
-import com.movtery.zalithlauncher.ui.androidText
 import com.movtery.zalithlauncher.ui.base.BaseScreen
 import com.movtery.zalithlauncher.ui.components.AnimatedRow
 import com.movtery.zalithlauncher.ui.components.BackgroundCard
@@ -116,7 +112,6 @@ import com.movtery.zalithlauncher.ui.components.SimpleAlertDialog
 import com.movtery.zalithlauncher.ui.components.SimpleEditDialog
 import com.movtery.zalithlauncher.ui.components.SingleLineTextCheck
 import com.movtery.zalithlauncher.ui.components.fadeEdge
-import com.movtery.zalithlauncher.ui.components.verticalScrollWithBar
 import com.movtery.zalithlauncher.ui.screens.NestedNavKey
 import com.movtery.zalithlauncher.ui.screens.NormalNavKey
 import com.movtery.zalithlauncher.ui.screens.TitledNavKey
@@ -241,8 +236,8 @@ fun ControlManageScreen(
             viewModel.createNew(layout) { e ->
                 submitError(
                     ErrorViewModel.ThrowableMessage(
-                        title = androidText(R.string.control_manage_failed_to_save),
-                        message = androidText(e.getMessageOrToString())
+                        title = context.getString(R.string.control_manage_failed_to_save),
+                        message = e.getMessageOrToString()
                     )
                 )
             }
@@ -253,8 +248,8 @@ fun ControlManageScreen(
         onSave = { data ->
             ControlManager.saveControl(data) { e ->
                 ErrorViewModel.ThrowableMessage(
-                    title = androidText(R.string.control_manage_failed_to_save),
-                    message = androidText(e.getMessageOrToString())
+                    title = context.getString(R.string.control_manage_failed_to_save),
+                    message = e.getMessageOrToString()
                 )
             }
         }
@@ -291,8 +286,8 @@ fun ControlManageScreen(
                         viewModel.copyNew(data.controlLayout) { e ->
                             submitError(
                                 ErrorViewModel.ThrowableMessage(
-                                    title = androidText(R.string.control_manage_failed_to_save),
-                                    message = androidText(e.getMessageOrToString())
+                                    title = context.getString(R.string.control_manage_failed_to_save),
+                                    message = e.getMessageOrToString()
                                 )
                             )
                         }
@@ -437,7 +432,6 @@ private fun ControlOperation(
 /**
  * 左侧：控制布局展示列表
  */
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun ControlLayoutList(
     modifier: Modifier = Modifier,
@@ -470,17 +464,11 @@ private fun ControlLayoutList(
             )
 
             if (dataList.isNotEmpty()) {
-                val scrollState = rememberLazyListState()
                 LazyColumn(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .weight(1f)
-                        .scrollbar(
-                            state = scrollState.scrollIndicatorState,
-                            orientation = Orientation.Vertical,
-                        ),
-                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
-                    state = scrollState,
+                        .weight(1f),
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
                 ) {
                     items(dataList) { data ->
                         ControlLayoutItem(
@@ -658,7 +646,6 @@ private fun ControlLayoutItem(
 /**
  * 右侧：控制布局详细信息
  */
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun ControlLayoutInfo(
     modifier: Modifier = Modifier,
@@ -943,7 +930,7 @@ private fun CreateNewLayoutDialog(
                         modifier = Modifier
                             .fadeEdge(state = scrollState)
                             .weight(1f, fill = false)
-                            .verticalScrollWithBar(state = scrollState)
+                            .verticalScroll(state = scrollState)
                             .fillMaxWidth(),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {

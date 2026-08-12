@@ -122,10 +122,8 @@ class PlayerSkin(
     fun loadSkin(skinId: String?, model: SkinModelType?) {
         val modelString = model?.takeIf { it != SkinModelType.NONE }?.modelType ?: "auto-detect"
         val jsUrl = skinId?.let { id ->
-            AssetsUrlBuilder()
-                .append("skins")
-                .append("$id.png")
-                .toString()
+            if (id.startsWith("http") || id.startsWith("data:")) id
+            else AssetsUrlBuilder().append("skins").append("$id.png").toString()
         } ?: defaultSkin
         webview?.evaluateJavascript("loadSkin('$jsUrl', '$modelString')", null)
     }

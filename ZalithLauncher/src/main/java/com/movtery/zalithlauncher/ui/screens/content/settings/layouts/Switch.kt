@@ -19,7 +19,6 @@
 package com.movtery.zalithlauncher.ui.screens.content.settings.layouts
 
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -49,8 +48,7 @@ fun SwitchSettingsCard(
     verticalAlignment: Alignment.Vertical = Alignment.CenterVertically,
     titleStyle: TextStyle = MaterialTheme.typography.titleSmall,
     summaryStyle: TextStyle = MaterialTheme.typography.labelSmall,
-    trailingIcon: @Composable (RowScope.() -> Unit)? = null,
-    columnLayout: @Composable (ColumnScope.() -> Unit)? = null,
+    trailingIcon: @Composable (RowScope.() -> Unit)? = null
 ) {
     SettingsCard(
         modifier = modifier,
@@ -60,42 +58,36 @@ fun SwitchSettingsCard(
         onClick = { onCheckedChange(!checked) },
         enabled = enabled
     ) {
-        Column(
+        Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(all = 16.dp),
+            verticalAlignment = verticalAlignment
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = verticalAlignment
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(end = 16.dp)
             ) {
-                Column(
-                    modifier = Modifier
-                        .weight(1f)
-                        .padding(end = 16.dp)
-                ) {
-                    TitleAndSummary(
-                        title = title,
-                        summary = summary,
-                        titleStyle = titleStyle,
-                        summaryStyle = summaryStyle
-                    )
-                }
-
-                Row(
-                    verticalAlignment = verticalAlignment
-                ) {
-                    trailingIcon?.invoke(this)
-                }
-
-                DefaultSwitch(
-                    checked = checked,
-                    enabled = enabled,
-                    onCheckedChange = { value -> onCheckedChange(value) }
+                TitleAndSummary(
+                    title = title,
+                    summary = summary,
+                    titleStyle = titleStyle,
+                    summaryStyle = summaryStyle
                 )
             }
 
-            columnLayout?.invoke(this@Column)
+            Row(
+                verticalAlignment = verticalAlignment
+            ) {
+                trailingIcon?.invoke(this)
+            }
+
+            DefaultSwitch(
+                checked = checked,
+                enabled = enabled,
+                onCheckedChange = { value -> onCheckedChange(value) }
+            )
         }
     }
 }
@@ -114,8 +106,7 @@ fun SwitchSettingsCard(
     verticalAlignment: Alignment.Vertical = Alignment.CenterVertically,
     titleStyle: TextStyle = MaterialTheme.typography.titleSmall,
     summaryStyle: TextStyle = MaterialTheme.typography.labelSmall,
-    trailingIcon: @Composable (RowScope.() -> Unit)? = null,
-    columnLayout: @Composable (ColumnScope.() -> Unit)? = null,
+    trailingIcon: @Composable (RowScope.() -> Unit)? = null
 ) {
     SwitchSettingsCard(
         checked = unit.state,
@@ -133,7 +124,6 @@ fun SwitchSettingsCard(
         verticalAlignment = verticalAlignment,
         titleStyle = titleStyle,
         summaryStyle = summaryStyle,
-        trailingIcon = trailingIcon,
-        columnLayout = columnLayout,
+        trailingIcon = trailingIcon
     )
 }

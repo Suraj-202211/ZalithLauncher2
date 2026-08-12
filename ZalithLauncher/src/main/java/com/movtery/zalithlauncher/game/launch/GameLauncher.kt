@@ -20,9 +20,7 @@ package com.movtery.zalithlauncher.game.launch
 
 import android.app.Activity
 import android.os.Build
-import android.os.Parcelable
 import android.widget.Toast
-import androidx.annotation.Keep
 import androidx.compose.ui.unit.IntSize
 import com.movtery.zalithlauncher.BuildConfig
 import com.movtery.zalithlauncher.R
@@ -33,6 +31,7 @@ import com.movtery.zalithlauncher.bridge.ZLBridge
 import com.movtery.zalithlauncher.context.readAssetFile
 import com.movtery.zalithlauncher.game.account.Account
 import com.movtery.zalithlauncher.game.account.AccountType
+import com.movtery.zalithlauncher.game.account.AccountsManager
 import com.movtery.zalithlauncher.game.account.offline.OfflineYggdrasilServer
 import com.movtery.zalithlauncher.game.addons.modloader.ModLoader
 import com.movtery.zalithlauncher.game.download.game.parseLibraryComponents
@@ -42,12 +41,10 @@ import com.movtery.zalithlauncher.game.path.GamePathManager
 import com.movtery.zalithlauncher.game.plugin.driver.DriverPluginManager
 import com.movtery.zalithlauncher.game.plugin.renderer.RendererPluginManager
 import com.movtery.zalithlauncher.game.renderer.Renderers
-import com.movtery.zalithlauncher.game.renderer.renderers.GL4ESRenderer
-import com.movtery.zalithlauncher.game.renderer.renderers.NGGL4ESRenderer
 import com.movtery.zalithlauncher.game.support.touch_controller.ControllerProxy
 import com.movtery.zalithlauncher.game.version.installed.Version
-import com.movtery.zalithlauncher.game.version.installed.VersionInfoParser
 import com.movtery.zalithlauncher.game.version.installed.VersionsManager
+import com.movtery.zalithlauncher.game.version.installed.getGameManifest
 import com.movtery.zalithlauncher.game.versioninfo.models.GameManifest
 import com.movtery.zalithlauncher.path.LibPath
 import com.movtery.zalithlauncher.path.PathManager
@@ -56,44 +53,26 @@ import com.movtery.zalithlauncher.utils.GSON
 import com.movtery.zalithlauncher.utils.device.Architecture
 import com.movtery.zalithlauncher.utils.file.child
 import com.movtery.zalithlauncher.utils.file.ensureDirectorySilently
-import com.movtery.zalithlauncher.utils.logging.Logger
+import com.movtery.zalithlauncher.utils.logging.Logger.lDebug
+import com.movtery.zalithlauncher.utils.logging.Logger.lError
+import com.movtery.zalithlauncher.utils.logging.Logger.lInfo
+import com.movtery.zalithlauncher.utils.logging.Logger.lWarning
 import com.movtery.zalithlauncher.utils.string.isBiggerTo
 import com.movtery.zalithlauncher.utils.string.isEqualTo
-import kotlinx.parcelize.Parcelize
 import org.lwjgl.glfw.CallbackBridge
 import java.io.File
 import javax.microedition.khronos.egl.EGL10
 import javax.microedition.khronos.egl.EGLConfig
 import javax.microedition.khronos.egl.EGLContext
 
-private const val TAG = "GameLauncher"
-
-@Keep
-@Parcelize
-class LaunchConfig(
-    val version: Version,
-    val account: Account,
-): Parcelable
-
 class GameLauncher(
     private val activity: Activity,
-    config: LaunchConfig,
+    private val version: Version,
     onExit: (code: Int, isSignal: Boolean) -> Unit,
     openPath: (folder: File) -> Unit
 ) : Launcher(onExit, openPath) {
     private lateinit var gameManifest: GameManifest
-    private var jnaDir: File? = null
     private val offlineServer = OfflineYggdrasilServer(0)
-
-    private val version = config.version
-    private val usingAccount = if (version.offlineAccountLogin) {
-        //使用临时离线账号启动游戏
-        config.account.copy(
-            accountType = AccountType.LOCAL.tag
-        )
-    } else {
-        config.account
-    }
 
     override fun exit() {
         offlineServer.stop()
@@ -101,7 +80,7 @@ class GameLauncher(
 
     override suspend fun launch(screenSize: IntSize): Int {
         if (!Renderers.isCurrentRendererValid()) {
-            Renderers.setCurrentRenderer(version.getRenderer())
+            Renderers.setCurrentRenderer(activity, version.getRenderer())
         }
 
         val manifest = GSON.fromJson(File(version.getVersionPath(), "${version.getVersionName()}.json").readText(), GameManifest::class.java)
@@ -110,35 +89,33 @@ class GameLauncher(
             VersionsManager.getVersion(inheritsFrom)?.getClientJar()
         } ?: version.getClientJar()
 
-        gameManifest = VersionInfoParser(version)
-            .setManifest(manifest)
-            .setInheriting()
-            .build()
-
-        //jna
-        jnaDir = gameManifest.libraries?.find { library ->
-            library.name.startsWith("net.java.dev.jna:jna:")
-        }?.let { library ->
-            parseLibraryComponents(library.name).version
-        }?.let { jnaVersion ->
-            File(LibPath.JNA, jnaVersion)
-        }?.takeIf { it.exists() }
-
+        gameManifest = getGameManifest(version, gameManifest = manifest)
         CallbackBridge.nativeSetUseInputStackQueue(gameManifest.arguments != null)
 
+        val currentAccount = AccountsManager.currentAccountFlow.value!!
+        val account = if (version.offlineAccountLogin) {
+            //使用临时离线账号启动游戏
+            currentAccount.copy(
+                accountType = AccountType.LOCAL.tag
+            )
+        } else {
+            currentAccount
+        }
         val customArgs = version.getJvmArgs().takeIf { it.isNotBlank() } ?: AllSettings.jvmArgs.getValue()
         val javaRuntime = getRuntime()
 
         printLauncherInfo(
             javaArguments = customArgs.takeIf { it.isNotEmpty() } ?: "NONE",
             javaRuntime = javaRuntime,
+            account = account
         )
 
         return launchGame(
             screenSize = screenSize,
+            account = account,
             clientJar = clientJar,
             javaRuntime = javaRuntime,
-            customArgs = customArgs,
+            customArgs = customArgs
         )
     }
 
@@ -147,14 +124,22 @@ class GameLauncher(
         //Fix Forge 1.7.2
         val is172 = (versionInfo?.minecraftVersion ?: "0.0").isEqualTo("1.7.2")
         if (is172 && (versionInfo?.loaderInfo?.loader == ModLoader.FORGE)) {
-            Logger.debug(TAG, "Is Forge 1.7.2, use the patched sorting method.")
+            lDebug("Is Forge 1.7.2, use the patched sorting method.")
             put("sort.patch", "true")
         }
 
-        //Jna
-        jnaDir?.let { dir ->
-            val dirPath = dir.absolutePath
-            put("jna.boot.library.path", dirPath) //覆盖父类添加的jna路径
+        //jna
+        gameManifest.libraries?.find { library ->
+            library.name.startsWith("net.java.dev.jna:jna:")
+        }?.let { library ->
+            parseLibraryComponents(library.name).version
+        }?.let { jnaVersion ->
+            val jnaDir = File(LibPath.JNA, jnaVersion)
+            if (jnaDir.exists()) {
+                val dirPath = jnaDir.absolutePath
+                put("java.library.path", "$dirPath:${PathManager.DIR_NATIVE_LIB}")
+                put("jna.boot.library.path", dirPath) //覆盖父类添加的jna路径
+            }
         }
     }
 
@@ -187,15 +172,12 @@ class GameLauncher(
 
         //声音引擎加载后，dlopen渲染器的库
         RendererPluginManager.selectedRendererPlugin?.let { renderer ->
-            val libs by renderer.getDlopenLibrary()
-            libs.forEach { libPath ->
-                ZLBridge.dlopen(libPath)
-            }
+            renderer.dlopen.forEach { lib -> ZLBridge.dlopen("${renderer.path}/$lib") }
         }
 
         val rendererLib = loadGraphicsLibrary() ?: return
         if (!ZLBridge.dlopen(rendererLib) && !ZLBridge.dlopen(findInLdLibPath(rendererLib))) {
-            Logger.error(TAG, "Failed to load renderer $rendererLib")
+            lError("Failed to load renderer $rendererLib")
         }
     }
 
@@ -208,6 +190,7 @@ class GameLauncher(
 
     private suspend fun launchGame(
         screenSize: IntSize,
+        account: Account,
         clientJar: File,
         javaRuntime: String,
         customArgs: String
@@ -220,9 +203,11 @@ class GameLauncher(
 
         //初始化运行环境
         this.runtime = runtime
+        val runtimeLibraryPath = getRuntimeLibraryPath()
+
         val launchArgs = LaunchArgs(
-            runtimeLibraryPath = getRuntimeLibraryPath(),
-            account = usingAccount,
+            runtimeLibraryPath = runtimeLibraryPath,
+            account = account,
             offlineServer = offlineServer,
             gameDirPath = gameDirPath,
             version = version,
@@ -246,13 +231,6 @@ class GameLauncher(
         )
     }
 
-    override fun getRuntimeLibraryPath(): String {
-        val parent = super.getRuntimeLibraryPath()
-        return jnaDir?.absolutePath?.let { dirPath ->
-            "$parent:$dirPath"
-        } ?: parent
-    }
-
     private fun tryStartTouchProxy() {
         if (version.enableTouchProxy) {
             ControllerProxy.startProxy(
@@ -266,26 +244,27 @@ class GameLauncher(
     private fun printLauncherInfo(
         javaArguments: String,
         javaRuntime: String,
+        account: Account
     ) {
         var mcInfo = version.getVersionName()
         version.getVersionInfo()?.let { info -> mcInfo = info.getInfoString() }
         val renderer = Renderers.getCurrentRenderer()
 
         appendTitle("Launch Minecraft")
-        append("▷ Launcher version: ${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})")
-        append("▷ Architecture: ${Architecture.archAsString(ZLApplication.DEVICE_ARCHITECTURE)}")
-        append("▷ Device model: ${Build.MANUFACTURER}, ${Build.MODEL}")
-        append("▷ API version: ${Build.VERSION.SDK_INT}")
-        append("▷ Renderer: ${renderer.getRendererName()}")
+        append("Info: Launcher version: ${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})")
+        append("Info: Architecture: ${Architecture.archAsString(ZLApplication.DEVICE_ARCHITECTURE)}")
+        append("Info: Device model: ${Build.MANUFACTURER}, ${Build.MODEL}")
+        append("Info: API version: ${Build.VERSION.SDK_INT}")
+        append("Info: Renderer: ${renderer.getRendererName()}")
         renderer.getRendererSummary()?.let { summary ->
-            append("▷ Renderer Summary: $summary")
+            append("Info: Renderer Summary: $summary")
         }
-        append("▷ Selected Minecraft version: ${version.getVersionName()}")
-        append("▷ Minecraft Info: $mcInfo")
-        append("▷ Game Path: ${version.getGameDir().absolutePath} (Isolation: ${version.isIsolation()})")
-        append("▷ Custom Java arguments: $javaArguments")
-        append("▷ Java Runtime: $javaRuntime")
-        append("▷ Account: ${usingAccount.username} (${usingAccount.accountType})")
+        append("Info: Selected Minecraft version: ${version.getVersionName()}")
+        append("Info: Minecraft Info: $mcInfo")
+        append("Info: Game Path: ${version.getGameDir().absolutePath} (Isolation: ${version.isIsolation()})")
+        append("Info: Custom Java arguments: $javaArguments")
+        append("Info: Java Runtime: $javaRuntime")
+        append("Info: Account: ${account.username} (${account.accountType})")
     }
 
     /**
@@ -347,10 +326,10 @@ class GameLauncher(
                         )
                     }
                 }.onFailure {
-                    Logger.warning(TAG, "Could not disable Forge 1.12.2 and below splash screen!", it)
+                    lWarning("Could not disable Forge 1.12.2 and below splash screen!", it)
                 }
             } else {
-                Logger.warning(TAG, "Failed to create the configuration directory")
+                lWarning("Failed to create the configuration directory")
             }
         }
     }
@@ -388,11 +367,9 @@ private fun setRendererEnv(envMap: MutableMap<String, String>) {
 
     if (RendererPluginManager.selectedRendererPlugin != null) return
 
-    if (renderer != GL4ESRenderer && renderer != NGGL4ESRenderer) {
+    if (!rendererId.startsWith("opengles")) {
         envMap["MESA_LOADER_DRIVER_OVERRIDE"] = "zink"
         envMap["MESA_GLSL_CACHE_DIR"] = PathManager.DIR_CACHE.absolutePath
-        envMap["MESA_GL_VERSION_OVERRIDE"] = "4.6"
-        envMap["MESA_GLSL_VERSION_OVERRIDE"] = "460"
         envMap["force_glsl_extensions_warn"] = "true"
         envMap["allow_higher_compat_version"] = "true"
         envMap["allow_glsl_extension_directive_midshader"] = "true"
@@ -401,7 +378,7 @@ private fun setRendererEnv(envMap: MutableMap<String, String>) {
 
     if (!envMap.containsKey("LIBGL_ES")) {
         val glesMajor = getDetectedVersion()
-        Logger.info(TAG, "GLES version detected: $glesMajor")
+        lInfo("GLES version detected: $glesMajor")
 
         envMap["LIBGL_ES"] = if (glesMajor < 3) {
             //fallback to 2 since it's the minimum for the entire app
@@ -422,8 +399,15 @@ private fun setRendererEnv(envMap: MutableMap<String, String>) {
  * @return The name of the loaded library
  */
 private fun loadGraphicsLibrary(): String? {
-    return if (!Renderers.isCurrentRendererValid()) null
-    else Renderers.getCurrentRenderer().getRendererLibrary()
+    if (!Renderers.isCurrentRendererValid()) return null
+    else {
+        val rendererPlugin = RendererPluginManager.selectedRendererPlugin
+        return if (rendererPlugin != null) {
+            "${rendererPlugin.path}/${rendererPlugin.glName}"
+        } else {
+            Renderers.getCurrentRenderer().getRendererLibrary()
+        }
+    }
 }
 
 /**
@@ -474,7 +458,7 @@ private fun getDetectedVersion(): Int {
                                 if (highestEsVersion < 1) highestEsVersion = 1
                             }
                         } else {
-                            Logger.warning(TAG,
+                            lWarning(
                                 ("Getting config attribute with "
                                         + "EGL10#eglGetConfigAttrib failed "
                                         + "(" + i + "/" + numConfigs[0] + "): "
@@ -484,14 +468,14 @@ private fun getDetectedVersion(): Int {
                     }
                     return highestEsVersion
                 } else {
-                    Logger.error(TAG,
+                    lError(
                         "Getting configs with EGL10#eglGetConfigs failed: "
                                 + egl.eglGetError()
                     )
                     return -1
                 }
             } else {
-                Logger.error(TAG,
+                lError(
                     "Getting number of configs with EGL10#eglGetConfigs failed: "
                             + egl.eglGetError()
                 )
@@ -501,7 +485,7 @@ private fun getDetectedVersion(): Int {
             egl.eglTerminate(display)
         }
     } else {
-        Logger.error(TAG, "Couldn't initialize EGL.")
+        lError("Couldn't initialize EGL.")
         return -3
     }
 }

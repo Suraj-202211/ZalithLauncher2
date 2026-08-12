@@ -20,7 +20,6 @@ package com.movtery.zalithlauncher.game.version.installed
 
 import android.content.Context
 import android.os.Parcelable
-import androidx.annotation.Keep
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -35,10 +34,15 @@ import com.movtery.zalithlauncher.setting.unit.getOrMin
 import com.movtery.zalithlauncher.ui.screens.content.elements.QuickPlay
 import com.movtery.zalithlauncher.utils.platform.getMaxMemoryForSettings
 import com.movtery.zalithlauncher.utils.string.isNotEmptyOrBlank
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.runBlocking
 import kotlinx.parcelize.IgnoredOnParcel
 import kotlinx.parcelize.Parcelize
 import java.io.File
 import kotlin.math.min
+import com.modulamobile.settings.modulaDataStore
+import com.modulamobile.settings.PreferenceKeys
 
 /**
  * Minecraft 版本，由版本名称进行区分
@@ -48,7 +52,6 @@ import kotlin.math.min
  * @param isValid 版本的有效性
  * @param versionType 版本的类型
  */
-@Keep
 @Parcelize
 class Version(
     private val versionName: String,
@@ -158,7 +161,13 @@ class Version(
 
     private fun String.getValueOrDefault(default: String): String = this.takeIf { it.isNotEmpty() } ?: default
 
-    fun getRenderer(): String = versionConfig.renderer.getValueOrDefault(AllSettings.renderer.getValue())
+    fun getRenderer(): String {
+        val configured = versionConfig.renderer.getValueOrDefault(AllSettings.renderer.getValue())
+        if (configured == "auto" || configured.isEmpty()) {
+            return if (com.movtery.zalithlauncher.utils.isAdrenoGPU()) "turnip" else "zink"
+        }
+        return configured
+    }
 
     fun getDriver(): String = versionConfig.driver.getValueOrDefault(AllSettings.vulkanDriver.getValue())
 
@@ -171,7 +180,11 @@ class Version(
 
     fun getJavaRuntime(): String = versionConfig.javaRuntime
 
-    fun getJvmArgs(): String = versionConfig.jvmArgs
+    fun getJvmArgs(): String {
+        val baseArgs = versionConfig.jvmArgs
+        val perfArgs = "-XX:+UseG1GC -XX:+UnlockExperimentalVMOptions"
+        return if (baseArgs.contains("UseG1GC")) baseArgs else "$perfArgs $baseArgs"
+    }
 
     fun getCustomInfo(): String = versionConfig.customInfo.getValueOrDefault(AllSettings.versionCustomInfo.getValue())
         .replace("[zl_version]", BuildConfig.VERSION_NAME)
@@ -180,7 +193,12 @@ class Version(
 
     fun getRamAllocation(context: Context = GlobalContext): Int = versionConfig.ramAllocation.takeIf { it >= 256 }?.let {
         min(it, getMaxMemoryForSettings(context))
-    } ?: AllSettings.ramAllocation.getOrMin()
+    } ?: run {
+        val modulaRam = runBlocking {
+            context.modulaDataStore.data.map { it[PreferenceKeys.RAM_MB] ?: -1 }.first()
+        }
+        if (modulaRam > 0) min(modulaRam, getMaxMemoryForSettings(context)) else AllSettings.ramAllocation.getOrMin()
+    }
 
     fun getTouchVibrateDuration(): Int? = versionConfig.touchVibrateDuration.takeIf { it >= 80 }
 

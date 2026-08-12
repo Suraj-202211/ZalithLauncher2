@@ -44,15 +44,14 @@ import com.movtery.zalithlauncher.ui.screens.splash.SplashScreen
 import com.movtery.zalithlauncher.ui.theme.ZalithLauncherTheme
 import com.movtery.zalithlauncher.ui.theme.backgroundColor
 import com.movtery.zalithlauncher.ui.theme.onBackgroundColor
-import com.movtery.zalithlauncher.utils.logging.Logger
+import com.movtery.zalithlauncher.utils.logging.Logger.lInfo
+import com.movtery.zalithlauncher.utils.logging.Logger.lWarning
 import com.movtery.zalithlauncher.viewmodel.SplashBackStackViewModel
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.launch
 import java.util.concurrent.atomic.AtomicInteger
-
-private const val TAG = "SplashActivity"
 
 const val EXTRA_IMPORT_ACTION = "EXTRA_IMPORT_ACTION"
 const val EXTRA_IMPORT_URI    = "EXTRA_IMPORT_URI"
@@ -64,7 +63,7 @@ const val IMPORT_TYPE_UNKNOWN = "unknown"
 
 @SuppressLint("CustomSplashScreen")
 @AndroidEntryPoint
-class SplashActivity : BaseAppCompatActivity() {
+class SplashActivity : BaseAppCompatActivity(refreshData = false) {
     private val unpackItems: MutableList<InstallableItem> = ArrayList()
     private val finishedTaskCount = AtomicInteger(0)
 
@@ -104,7 +103,7 @@ class SplashActivity : BaseAppCompatActivity() {
 
         //若依赖未完成，忽略所有外部导入
         if (!areAllTasksFinished()) {
-            Logger.info(TAG, "Import intent received but dependencies are not ready, ignoring.")
+            lInfo("Import intent received but dependencies are not ready, ignoring.")
             return
         }
 
@@ -155,7 +154,7 @@ class SplashActivity : BaseAppCompatActivity() {
     private fun checkAllTask() {
         //检查应用 assets 目录
         listAssetsPath("runtimes").forEach { filePath ->
-            Logger.info(TAG, "The launcher contains the runtime environment: $filePath")
+            lInfo("The launcher contains the runtime environment: $filePath")
         }
 
         unpackItems.forEach { item ->
@@ -224,7 +223,7 @@ class SplashActivity : BaseAppCompatActivity() {
     private fun checkTasksToMain(): Boolean {
         if (!areAllTasksFinished()) return false
 
-        Logger.info(TAG, "All content that needs to be extracted is already the latest version!")
+        lInfo("All content that needs to be extracted is already the latest version!")
 
         if (isImportIntent(intent) && !isLauncherIntent(intent)) {
             val success = handleImportIntent(intent)
@@ -258,14 +257,14 @@ class SplashActivity : BaseAppCompatActivity() {
         }
 
         if (uri == null) {
-            Logger.warning(TAG, "No valid import Uri found")
+            lWarning("No valid import Uri found")
             return false
         } else {
             try {
                 //可持久化访问授权
                 contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
             } catch (_: Exception) {
-                Logger.warning(TAG, "No persistable permission granted for $uri")
+                lWarning("No persistable permission granted for $uri")
             }
         }
 

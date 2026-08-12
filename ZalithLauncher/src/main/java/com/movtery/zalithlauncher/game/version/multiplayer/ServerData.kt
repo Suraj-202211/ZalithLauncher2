@@ -25,13 +25,11 @@ import androidx.compose.runtime.setValue
 import com.github.steveice10.opennbt.tag.builtin.ByteTag
 import com.github.steveice10.opennbt.tag.builtin.CompoundTag
 import com.github.steveice10.opennbt.tag.builtin.StringTag
-import com.movtery.zalithlauncher.utils.logging.Logger
+import com.movtery.zalithlauncher.utils.logging.Logger.lWarning
 import com.movtery.zalithlauncher.utils.network.ServerAddress
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.util.Base64
-
-private const val TAG = "ServerData"
 
 /**
  * Minecraft 服务器主要信息数据类
@@ -104,7 +102,7 @@ data class ServerData(
                 operation = Operation.Loaded(result)
             }
         }.onFailure {
-            Logger.warning(TAG, "Unable to load/connect to server: $originIp", it)
+            lWarning("Unable to load/connect to server: $originIp", it)
             withContext(Dispatchers.Main) {
                 operation = Operation.Failed
             }

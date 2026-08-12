@@ -22,7 +22,6 @@ import com.movtery.zalithlauncher.game.download.assets.platform.PlatformClasses
 import com.movtery.zalithlauncher.game.download.assets.platform.PlatformSearchResult
 import com.movtery.zalithlauncher.game.download.assets.platform.curseforge.models.CurseForgeData
 import com.movtery.zalithlauncher.game.download.assets.platform.curseforge.models.CurseForgePagination
-import com.movtery.zalithlauncher.game.download.assets.platform.curseforge.models.isApproved
 import com.movtery.zalithlauncher.game.download.assets.platform.searchRankWithChineseBias
 import com.movtery.zalithlauncher.game.download.assets.utils.getTranslations
 import com.movtery.zalithlauncher.ui.screens.content.download.assets.elements.AssetsPage
@@ -35,18 +34,17 @@ class CurseForgeSearchResult(
      * 响应数据
      */
     @SerialName("data")
-    private val data: Array<CurseForgeData>,
+    val data: Array<CurseForgeData>,
 
     /**
      * 响应分页信息
      */
     @SerialName("pagination")
-    private val pagination: CurseForgePagination
+    val pagination: CurseForgePagination
 ): PlatformSearchResult {
     override fun getAssetsPage(classes: PlatformClasses): AssetsPage {
-        val mcmodData = data.mapNotNull { data0 ->
-            if (!data0.isApproved()) return@mapNotNull null
-            data0 to classes.getTranslations().getModBySlugId(data0.slug)
+        val mcmodData = data.map {
+            it to classes.getTranslations().getModBySlugId(it.slug)
         }
         val pageSize = pagination.pageSize
         val isLastPage = pagination.resultCount < pageSize ||
@@ -65,7 +63,7 @@ class CurseForgeSearchResult(
         searchFilter: String,
         classes: PlatformClasses
     ): PlatformSearchResult {
-        val newData = data.filter { it.isApproved() }
+        val newData = data.toList()
             .searchRankWithChineseBias(searchFilter, classes) { it.slug }
             .toTypedArray()
         return CurseForgeSearchResult(newData, pagination)

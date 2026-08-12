@@ -18,6 +18,7 @@
 
 package com.movtery.zalithlauncher.ui.screens.content.settings
 
+import android.widget.Toast
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.layout.Arrangement
@@ -42,6 +43,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.IntOffset
@@ -50,7 +52,6 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.movtery.zalithlauncher.R
 import com.movtery.zalithlauncher.setting.AllSettings
 import com.movtery.zalithlauncher.setting.unit.floatRange
-import com.movtery.zalithlauncher.ui.androidText
 import com.movtery.zalithlauncher.ui.base.BaseScreen
 import com.movtery.zalithlauncher.ui.components.AnimatedLazyColumn
 import com.movtery.zalithlauncher.ui.components.CheckChip
@@ -71,14 +72,13 @@ import com.movtery.zalithlauncher.ui.screens.content.settings.layouts.ListSettin
 import com.movtery.zalithlauncher.ui.screens.content.settings.layouts.SettingsCard
 import com.movtery.zalithlauncher.ui.screens.content.settings.layouts.SettingsCardColumn
 import com.movtery.zalithlauncher.ui.screens.content.settings.layouts.SwitchSettingsCard
-import com.movtery.zalithlauncher.utils.logging.Logger
+import com.movtery.zalithlauncher.utils.logging.Logger.lWarning
 import com.movtery.zalithlauncher.utils.string.isEmptyOrBlank
-import com.movtery.zalithlauncher.viewmodel.EventViewModel
 import com.movtery.zalithlauncher.viewmodel.GAMEPAD_CONFIG_NAME_LENGTH
 import com.movtery.zalithlauncher.viewmodel.GamepadViewModel
-import com.movtery.zalithlauncher.viewmodel.sendToast
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 private sealed interface BindKeyOperation {
     data object None : BindKeyOperation
@@ -98,8 +98,7 @@ private sealed interface CreateNewConfigOperation {
 fun GamepadSettingsScreen(
     key: NestedNavKey.Settings,
     settingsScreenKey: TitledNavKey?,
-    mainScreenKey: TitledNavKey?,
-    eventViewModel: EventViewModel,
+    mainScreenKey: TitledNavKey?
 ) {
     val viewModel: GamepadViewModel = viewModel()
 
@@ -146,7 +145,7 @@ fun GamepadSettingsScreen(
             viewModel.createNewConfig(
                 name = name,
                 onContainsConfig = {
-                    Logger.warning("GamepadSettings", "There is already a configuration with the same name")
+                    lWarning("There is already a configuration with the same name")
                 },
                 onFinished = {
                     refreshed = refreshed.not()
@@ -181,6 +180,7 @@ fun GamepadSettingsScreen(
                         .offset { IntOffset(x = 0, y = yOffset.roundToPx()) }
                 ) {
                     val scope = rememberCoroutineScope()
+                    val context = LocalContext.current
 
                     SettingsCard(
                         modifier = Modifier.fillMaxWidth(),
@@ -191,9 +191,13 @@ fun GamepadSettingsScreen(
                             scope.launch(Dispatchers.IO) {
                                 val mmkv = remapperMMKV()
                                 mmkv.clearAll()
-                                eventViewModel.sendToast(
-                                    androidText(R.string.settings_gamepad_remapping_reset_finished)
-                                )
+                                withContext(Dispatchers.Main) {
+                                    Toast.makeText(
+                                        context,
+                                        context.getString(R.string.settings_gamepad_remapping_reset_finished),
+                                        Toast.LENGTH_SHORT
+                                    ).show()
+                                }
                             }
                         }
                     )

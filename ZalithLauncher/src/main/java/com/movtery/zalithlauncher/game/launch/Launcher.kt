@@ -25,7 +25,6 @@ import android.system.Os
 import android.util.ArrayMap
 import androidx.annotation.CallSuper
 import androidx.compose.ui.unit.IntSize
-import com.movtery.zalithlauncher.BuildKeys
 import com.movtery.zalithlauncher.bridge.LoggerBridge
 import com.movtery.zalithlauncher.bridge.ZLBridge
 import com.movtery.zalithlauncher.bridge.ZLNativeInvoker
@@ -35,6 +34,7 @@ import com.movtery.zalithlauncher.game.path.getGameHome
 import com.movtery.zalithlauncher.game.plugin.ffmpeg.FFmpegPluginManager
 import com.movtery.zalithlauncher.game.plugin.natives.NativePluginManager
 import com.movtery.zalithlauncher.game.plugin.renderer.RendererPluginManager
+import com.movtery.zalithlauncher.info.InfoDistributor
 import com.movtery.zalithlauncher.path.LibPath
 import com.movtery.zalithlauncher.path.PathManager
 import com.movtery.zalithlauncher.setting.AllSettings
@@ -42,16 +42,15 @@ import com.movtery.zalithlauncher.setting.unit.getOrMin
 import com.movtery.zalithlauncher.utils.device.Architecture
 import com.movtery.zalithlauncher.utils.device.Architecture.ARCH_X86
 import com.movtery.zalithlauncher.utils.device.Architecture.is64BitsDevice
-import com.movtery.zalithlauncher.utils.logging.Logger
-import com.movtery.zalithlauncher.utils.string.splitPreservingQuotes
+import com.movtery.zalithlauncher.utils.logging.Logger.lError
+import com.movtery.zalithlauncher.utils.logging.Logger.lInfo
+import com.movtery.zalithlauncher.utils.logging.Logger.lWarning
 import com.oracle.dalvik.VMLauncher
 import org.apache.commons.io.FileUtils
 import java.io.File
 import java.io.IOException
 import java.util.Locale
 import java.util.TimeZone
-
-private const val TAG = "Launcher"
 
 abstract class Launcher(
     val onExit: (code: Int, isSignal: Boolean) -> Unit,
@@ -127,11 +126,11 @@ abstract class Launcher(
             val arg = iterator.next()
             if (arg.startsWith("--accessToken") && iterator.hasNext()) {
                 iterator.next()
-                LoggerBridge.append("▷ $arg")
-                LoggerBridge.append("▷ ********************")
+                LoggerBridge.append("JVMArgs: $arg")
+                LoggerBridge.append("JVMArgs: ********************")
                 continue
             }
-            LoggerBridge.append("▷ $arg")
+            LoggerBridge.append("JVMArgs: $arg")
         }
 
         ZLBridge.setupExitMethod(context.applicationContext)
@@ -154,7 +153,7 @@ abstract class Launcher(
         screenSize: IntSize,
         useLocalLanguage: Boolean
     ): List<String> {
-        val userArguments = userArgumentsString.splitPreservingQuotes().toMutableList()
+        val userArguments = parseJavaArguments(userArgumentsString).toMutableList()
         val resolvFile = ensureDNSConfig()
 
         val overridableArguments = mutableMapOf<String, String>().apply {
@@ -183,7 +182,7 @@ abstract class Launcher(
             put("com.sun.jndi.rmi.object.trustURLCodebase", "false")
             put("com.sun.jndi.cosnaming.object.trustURLCodebase", "false")
 
-            put("net.minecraft.clientmodname", BuildKeys.LAUNCHER_NAME)
+            put("net.minecraft.clientmodname", InfoDistributor.LAUNCHER_NAME)
 
             // fml
             put("fml.earlyprogresswindow", "false")
@@ -204,7 +203,7 @@ abstract class Launcher(
             val stripped = arg.substringBefore('=')
             val overridden = userArguments.any { it.startsWith(stripped) }
             if (overridden) {
-                Logger.info(TAG, "Arg skipped: $arg")
+                lInfo("Arg skipped: $arg")
             }
             !overridden
         }
@@ -233,7 +232,7 @@ abstract class Launcher(
             runCatching {
                 resolvFile.writeText(configText)
             }.onFailure {
-                Logger.warning(TAG, "Failed to create resolv.conf", it)
+                lWarning("Failed to create resolv.conf", it)
                 FileUtils.deleteQuietly(resolvFile)
             }
         }
@@ -268,8 +267,8 @@ abstract class Launcher(
         val ramAllocationString = ramAllocation.toString()
         args.add("-Xms${ramAllocationString}M")
         args.add("-Xmx${ramAllocationString}M")
-
-        args.add("-Dorg.lwjgl.openal.libname=${PathManager.DIR_NATIVE_LIB}/libopenal.so")
+        android.util.Log.d("ModulaLaunch", "RAM for launch: ${AllSettings.ramAllocation.getOrMin()}MB")
+        android.util.Log.d("ModulaLaunch", "JVM arg: -Xmx${ramAllocationString}M")
 
         // Force LWJGL to use the Freetype library intended for it, instead of using the one
         // that we ship with Java (since it may be older than what's needed)
@@ -313,7 +312,7 @@ abstract class Launcher(
         return jvmLibDir
     }
 
-    protected open fun getRuntimeLibraryPath(): String {
+    protected fun getRuntimeLibraryPath(): String {
         val javaLibDir = getJavaLibDir()
         val jvmLibDir = getJvmLibDir()
 
@@ -377,11 +376,11 @@ abstract class Launcher(
     private fun setEnv(screenSize: IntSize) {
         val envMap = initEnv(screenSize)
         envMap.forEach { (key, value) ->
-            LoggerBridge.append("▷ $key = $value")
+            LoggerBridge.append("Added env: $key = $value")
             runCatching {
                 Os.setenv(key, value, true)
             }.onFailure {
-                Logger.error(TAG, "Unable to set environment variable.", it)
+                lError("Unable to set environment variable.", it)
             }
         }
     }
@@ -449,6 +448,45 @@ abstract class Launcher(
     protected open fun dlopenEngine() {
         ZLBridge.dlopen("${PathManager.DIR_NATIVE_LIB}/libopenal.so")
     }
+}
+
+/**
+ * [Modified from PojavLauncher](https://github.com/PojavLauncherTeam/PojavLauncher/blob/98947f2/app_pojavlauncher/src/main/java/net/kdt/pojavlaunch/utils/JREUtils.java#L411-L456)
+ */
+fun parseJavaArguments(args: String): List<String> {
+    val parsedArguments = mutableListOf<String>()
+    var cleanedArgs = args.trim().replace(" ", "")
+    val separators = listOf("-XX:-", "-XX:+", "-XX:", "--", "-D", "-X", "-javaagent:", "-verbose")
+
+    for (prefix in separators) {
+        while (true) {
+            val start = cleanedArgs.indexOf(prefix)
+            if (start == -1) break
+
+            val end = separators
+                .mapNotNull { sep ->
+                    val i = cleanedArgs.indexOf(sep, start + prefix.length)
+                    if (i != -1) i else null
+                }
+                .minOrNull() ?: cleanedArgs.length
+
+            val parsedSubstring = cleanedArgs.substring(start, end)
+            cleanedArgs = cleanedArgs.replace(parsedSubstring, "")
+
+            if (parsedSubstring.indexOf('=') == parsedSubstring.lastIndexOf('=')) {
+                val last = parsedArguments.lastOrNull()
+                if (last != null && (last.endsWith(',') || parsedSubstring.contains(','))) {
+                    parsedArguments[parsedArguments.lastIndex] = last + parsedSubstring
+                } else {
+                    parsedArguments.add(parsedSubstring)
+                }
+            } else {
+                lWarning("Removed improper arguments: $parsedSubstring")
+            }
+        }
+    }
+
+    return parsedArguments
 }
 
 fun getCacioJavaArgs(

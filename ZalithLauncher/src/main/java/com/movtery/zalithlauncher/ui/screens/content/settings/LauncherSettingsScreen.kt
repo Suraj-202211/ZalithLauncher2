@@ -21,39 +21,23 @@ package com.movtery.zalithlauncher.ui.screens.content.settings
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.Crossfade
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.wrapContentHeight
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.material3.Button
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.scrollbar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -69,11 +53,6 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
-import com.materialkolor.PaletteStyle
-import com.movtery.colorpicker.ColorPickerController
-import com.movtery.colorpicker.components.HueBarPicker
 import com.movtery.colorpicker.rememberColorPickerController
 import com.movtery.zalithlauncher.R
 import com.movtery.zalithlauncher.contract.MediaPickerContract
@@ -82,31 +61,22 @@ import com.movtery.zalithlauncher.coroutine.TaskSystem
 import com.movtery.zalithlauncher.path.PathManager
 import com.movtery.zalithlauncher.setting.AllSettings
 import com.movtery.zalithlauncher.setting.enums.AppLanguage
-import com.movtery.zalithlauncher.setting.enums.BackgroundBlur
 import com.movtery.zalithlauncher.setting.enums.DarkMode
 import com.movtery.zalithlauncher.setting.enums.HomePageType
 import com.movtery.zalithlauncher.setting.enums.MirrorSourceType
 import com.movtery.zalithlauncher.setting.enums.applyLanguage
 import com.movtery.zalithlauncher.setting.unit.floatRange
-import com.movtery.zalithlauncher.ui.androidText
 import com.movtery.zalithlauncher.ui.base.BaseScreen
 import com.movtery.zalithlauncher.ui.components.AnimatedColumn
+import com.movtery.zalithlauncher.ui.components.ColorPickerDialog
 import com.movtery.zalithlauncher.ui.components.IconTextButton
-import com.movtery.zalithlauncher.ui.components.MarqueeText
 import com.movtery.zalithlauncher.ui.components.OwnOutlinedTextField
-import com.movtery.zalithlauncher.ui.components.RadioCard
 import com.movtery.zalithlauncher.ui.components.SimpleAlertDialog
-import com.movtery.zalithlauncher.ui.components.SimpleEditDialog
 import com.movtery.zalithlauncher.ui.components.TitleAndSummary
 import com.movtery.zalithlauncher.ui.components.WarningCard
-import com.movtery.zalithlauncher.ui.components.fadeEdge
-import com.movtery.zalithlauncher.ui.components.toColorOrNull
-import com.movtery.zalithlauncher.ui.components.toHex
-import com.movtery.zalithlauncher.ui.components.verticalScrollWithBar
 import com.movtery.zalithlauncher.ui.screens.NestedNavKey
 import com.movtery.zalithlauncher.ui.screens.NormalNavKey
 import com.movtery.zalithlauncher.ui.screens.TitledNavKey
-import com.movtery.zalithlauncher.ui.screens.content.elements.DisabledAlpha
 import com.movtery.zalithlauncher.ui.screens.content.settings.layouts.CardPosition
 import com.movtery.zalithlauncher.ui.screens.content.settings.layouts.EnumSettingsCard
 import com.movtery.zalithlauncher.ui.screens.content.settings.layouts.IntSliderSettingsCard
@@ -115,12 +85,11 @@ import com.movtery.zalithlauncher.ui.screens.content.settings.layouts.SettingsCa
 import com.movtery.zalithlauncher.ui.screens.content.settings.layouts.SettingsCardColumn
 import com.movtery.zalithlauncher.ui.screens.content.settings.layouts.SwitchSettingsCard
 import com.movtery.zalithlauncher.ui.theme.ColorThemeType
-import com.movtery.zalithlauncher.ui.theme.cardColor
-import com.movtery.zalithlauncher.ui.theme.onCardColor
 import com.movtery.zalithlauncher.utils.animation.TransitionAnimationType
 import com.movtery.zalithlauncher.utils.file.shareFile
 import com.movtery.zalithlauncher.utils.isChinaMainland
 import com.movtery.zalithlauncher.utils.logging.Logger
+import com.movtery.zalithlauncher.utils.logging.Logger.lError
 import com.movtery.zalithlauncher.utils.string.getMessageOrToString
 import com.movtery.zalithlauncher.viewmodel.BackgroundViewModel
 import com.movtery.zalithlauncher.viewmodel.ErrorViewModel
@@ -129,8 +98,6 @@ import com.movtery.zalithlauncher.viewmodel.LocalBackgroundViewModel
 import com.movtery.zalithlauncher.viewmodel.LocalHomePageViewModel
 import kotlinx.coroutines.Dispatchers
 import java.io.File
-
-private const val TAG = "LauncherSettingsScreen"
 
 private sealed interface CustomColorOperation {
     data object None : CustomColorOperation
@@ -157,7 +124,7 @@ fun LauncherSettingsScreen(
         AnimatedColumn(
             modifier = Modifier
                 .fillMaxWidth()
-                .verticalScrollWithBar(state = rememberScrollState())
+                .verticalScroll(state = rememberScrollState())
                 .padding(all = 12.dp),
             isVisible = isVisible
         ) { scope ->
@@ -274,7 +241,7 @@ fun LauncherSettingsScreen(
 
                         IntSliderSettingsCard(
                             modifier = Modifier.fillMaxWidth(),
-                            position = CardPosition.Middle,
+                            position = CardPosition.Bottom,
                             unit = AllSettings.videoBackgroundVolume,
                             title = stringResource(R.string.settings_launcher_background_video_volume_title),
                             summary = stringResource(R.string.settings_launcher_background_video_volume_summary),
@@ -282,50 +249,6 @@ fun LauncherSettingsScreen(
                             suffix = "%",
                             enabled = backgroundViewModel.isValid && backgroundViewModel.isVideo,
                             fineTuningControl = true
-                        )
-
-                        IntSliderSettingsCard(
-                            modifier = Modifier.fillMaxWidth(),
-                            position = CardPosition.Bottom,
-                            unit = AllSettings.backgroundBlur,
-                            title = stringResource(R.string.settings_title_blur),
-                            summary = stringResource(R.string.settings_launcher_background_blur_summary),
-                            valueRange = AllSettings.backgroundBlur.floatRange,
-                            suffix = "Dp",
-                            enabled = backgroundViewModel.isValid,
-                            fineTuningControl = true,
-                            appendContent = {
-                                val unit = AllSettings.backgroundBlurType
-                                val state = unit.state
-                                IconButton(
-                                    modifier = Modifier
-                                        .padding(start = 12.dp)
-                                        .size(32.dp),
-                                    colors = IconButtonDefaults.iconButtonColors(
-                                        containerColor = MaterialTheme.colorScheme.primary,
-                                        contentColor = MaterialTheme.colorScheme.onPrimary,
-                                        disabledContainerColor = MaterialTheme.colorScheme.primary.copy(alpha = DisabledAlpha),
-                                        disabledContentColor = MaterialTheme.colorScheme.onPrimary.copy(alpha = DisabledAlpha),
-                                    ),
-                                    onClick = {
-                                        unit.save(state.switch())
-                                    },
-                                    enabled = backgroundViewModel.isValid,
-                                ) {
-                                    Crossfade(
-                                        targetState = state
-                                    ) { target ->
-                                        val painter = when (target) {
-                                            BackgroundBlur.Background -> painterResource(R.drawable.ic_blur_circular_outlined)
-                                            BackgroundBlur.Foreground -> painterResource(R.drawable.ic_blur_circular_filled)
-                                        }
-                                        Icon(
-                                            painter = painter,
-                                            contentDescription = null
-                                        )
-                                    }
-                                }
-                            }
                         )
                     }
                 }
@@ -620,12 +543,10 @@ fun LauncherSettingsScreen(
                                 Task.runTask(
                                     id = "ZIP_LOGS",
                                     task = { task ->
-                                        task.updateProgress(-1f)
-                                        task.updateMessage(androidText(R.string.settings_launcher_log_share_packing))
+                                        task.updateProgress(-1f, R.string.settings_launcher_log_share_packing)
                                         val logsFile = File(PathManager.DIR_CACHE, "logs.zip")
                                         Logger.pack(logsFile)
-                                        task.updateProgress(1f)
-                                        task.updateMessage(null)
+                                        task.updateProgress(1f, null)
                                         //分享压缩包
                                         shareFile(
                                             context = context,
@@ -633,7 +554,7 @@ fun LauncherSettingsScreen(
                                         )
                                     },
                                     onError = { e ->
-                                        Logger.error(TAG, "Failed to package log files.", e)
+                                        lError("Failed to package log files.", e)
                                     }
                                 )
                             )
@@ -656,261 +577,27 @@ private fun CustomColorOperation(
             var tempColor by remember {
                 mutableStateOf(Color(AllSettings.launcherCustomColor.getValue()))
             }
-            //配色主题临时状态
-            val originalStyle = remember { AllSettings.launcherCustomPaletteStyle.getValue() }
-            var paletteStyle by remember {
-                mutableStateOf(originalStyle)
-            }
-
             val colorController = rememberColorPickerController(initialColor = tempColor)
+
             val currentColor by remember(colorController) { colorController.color }
 
-            CustomThemeDialog(
+            ColorPickerDialog(
                 colorController = colorController,
-                paletteStyle = paletteStyle,
-                onPaletteStyleChange = { style ->
-                    paletteStyle = style
-                    AllSettings.launcherCustomPaletteStyle.updateState(style)
-                },
                 onChangeFinished = {
                     AllSettings.launcherCustomColor.updateState(currentColor.toArgb())
                 },
                 onCancel = {
-                    //还原颜色、配色主题
+                    //还原颜色
                     AllSettings.launcherCustomColor.updateState(colorController.getOriginalColor().toArgb())
-                    AllSettings.launcherCustomPaletteStyle.updateState(originalStyle)
                     updateOperation(CustomColorOperation.None)
                 },
                 onConfirm = { selectedColor ->
                     AllSettings.launcherCustomColor.save(selectedColor.toArgb())
-                    AllSettings.launcherCustomPaletteStyle.save(paletteStyle)
                     updateOperation(CustomColorOperation.None)
                 },
+                showAlpha = false
             )
         }
-    }
-}
-
-@Composable
-private fun CustomThemeDialog(
-    colorController: ColorPickerController,
-    paletteStyle: PaletteStyle,
-    onPaletteStyleChange: (PaletteStyle) -> Unit,
-    onChangeFinished: () -> Unit = {},
-    onCancel: () -> Unit,
-    onConfirm: (Color) -> Unit,
-) {
-    val selectedColor by colorController.color
-    val selectedHex = remember(selectedColor) {
-        selectedColor.toHex()
-    }
-
-    /**
-     * 是否开启编辑Hex对话框
-     */
-    var editHex by remember {
-        mutableStateOf(false)
-    }
-
-    Dialog(
-        onDismissRequest = {},
-        properties = DialogProperties(
-            dismissOnClickOutside = false,
-            usePlatformDefaultWidth = false
-        )
-    ) {
-        BoxWithConstraints(
-            modifier = Modifier
-                .fillMaxWidth(0.55f)
-                .fillMaxHeight(),
-            contentAlignment = Alignment.Center
-        ) {
-            Surface(
-                modifier = Modifier
-                    .padding(all = 16.dp)
-                    .heightIn(max = maxHeight - 32.dp)
-                    .wrapContentHeight(),
-                shadowElevation = 3.dp,
-                color = cardColor(false),
-                contentColor = onCardColor(),
-                shape = MaterialTheme.shapes.extraLarge
-            ) {
-                Column(
-                    modifier = Modifier.padding(all = 16.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(16.dp)
-                ) {
-                    Text(
-                        text = stringResource(R.string.settings_launcher_color_theme_title),
-                        style = MaterialTheme.typography.titleMedium
-                    )
-
-                    Column(
-                        modifier = Modifier
-                            .weight(1f, fill = false)
-                            .fillMaxWidth()
-                    ) {
-                        Row(
-                            modifier = Modifier
-                                .wrapContentHeight()
-                                .fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(16.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            val scrollState = rememberLazyListState()
-                            //颜色风格
-                            LazyColumn(
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .fadeEdge(scrollState)
-                                    .scrollbar(
-                                        state = scrollState.scrollIndicatorState,
-                                        orientation = Orientation.Vertical,
-                                    ),
-                                verticalArrangement = Arrangement.spacedBy(12.dp),
-                                state = scrollState,
-                            ) {
-                                //标题
-                                item {
-                                    Text(
-                                        text = stringResource(R.string.settings_launcher_color_theme_style),
-                                        style = MaterialTheme.typography.labelMedium
-                                    )
-                                }
-
-                                items(PaletteStyle.entries) { style ->
-                                    RadioCard(
-                                        selected = paletteStyle == style,
-                                        text = style.name,
-                                        onClick = {
-                                            onPaletteStyleChange(style)
-                                        }
-                                    )
-                                }
-                            }
-
-                            Column(
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .verticalScrollWithBar(rememberScrollState()),
-                                verticalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                HueBarPicker(
-                                    modifier = Modifier
-                                        .height(30.dp)
-                                        .fillMaxWidth(),
-                                    controller = colorController,
-                                    onChangeFinished = onChangeFinished
-                                )
-
-                                //颜色预览
-                                Column(modifier = Modifier.fillMaxWidth()) {
-                                    val originalColor = remember {
-                                        colorController.getOriginalColor()
-                                    }
-
-                                    //初始颜色
-                                    Text(
-                                        text = originalColor.toHex(),
-                                        style = MaterialTheme.typography.labelMedium
-                                    )
-                                    Box(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .height(30.dp)
-                                            .background(color = originalColor)
-                                    )
-                                }
-
-                                Column(modifier = Modifier.fillMaxWidth()) {
-                                    //当前颜色
-                                    Text(
-                                        text = selectedHex,
-                                        style = MaterialTheme.typography.labelMedium
-                                    )
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(12.dp)
-                                    ) {
-                                        Box(
-                                            modifier = Modifier
-                                                .weight(1f)
-                                                .height(30.dp)
-                                                .background(color = selectedColor)
-                                        )
-                                        //手动编辑Hex
-                                        IconButton(
-                                            modifier = Modifier.size(36.dp),
-                                            onClick = { editHex = true }
-                                        ) {
-                                            Icon(
-                                                painter = painterResource(R.drawable.ic_edit_outlined),
-                                                contentDescription = stringResource(R.string.theme_color_picker_edit_hex)
-                                            )
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(16.dp)
-                    ) {
-                        FilledTonalButton(
-                            modifier = Modifier.weight(1f),
-                            onClick = {
-                                onChangeFinished()
-                                onCancel()
-                            }
-                        ) {
-                            MarqueeText(text = stringResource(R.string.generic_cancel))
-                        }
-                        Button(
-                            modifier = Modifier.weight(1f),
-                            onClick = {
-                                onConfirm(selectedColor)
-                            }
-                        ) {
-                            MarqueeText(text = stringResource(R.string.generic_confirm))
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    if (editHex) {
-        var value by remember {
-            mutableStateOf(selectedHex)
-        }
-        val newColor = remember(value) {
-            //尝试转换为颜色对象
-            value.toColorOrNull()
-        }
-
-        SimpleEditDialog(
-            title = stringResource(R.string.theme_color_picker_edit_hex),
-            value = value,
-            onValueChange = { new ->
-                value = new
-            },
-            isError = newColor == null,
-            supportingText = {
-                if (newColor == null) {
-                    Text(text = stringResource(R.string.theme_color_picker_edit_hex_invalid))
-                }
-            },
-            onDismissRequest = { editHex = false },
-            onConfirm = {
-                if (newColor != null) {
-                    colorController.setColor(newColor.copy(alpha = 1f))
-                    editHex = false
-                }
-            }
-        )
     }
 }
 
@@ -935,7 +622,6 @@ private fun CustomBackground(
         backgroundViewModel = backgroundViewModel
     )
 
-    val importErrorText = stringResource(R.string.error_import_image)
     val filePicker = rememberLauncherForActivityResult(
         contract = MediaPickerContract(
             allowImages = true,
@@ -948,15 +634,15 @@ private fun CustomBackground(
                 Task.runTask(
                     dispatcher = Dispatchers.IO,
                     task = { task ->
-                        task.updateMessage(androidText(R.string.settings_launcher_background_importing))
+                        task.updateMessage(R.string.settings_launcher_background_importing)
                         backgroundViewModel.import(context, result[0] /* 取决于上面的allowMultiple，此处一定会是单个元素的列表 */)
                     },
                     onError = { th ->
                         backgroundViewModel.delete()
                         submitError(
                             ErrorViewModel.ThrowableMessage(
-                                title = androidText(importErrorText),
-                                message = androidText(th.getMessageOrToString())
+                                title = context.getString(R.string.error_import_image),
+                                message = th.getMessageOrToString()
                             )
                         )
                     }

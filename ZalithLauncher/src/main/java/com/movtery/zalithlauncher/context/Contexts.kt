@@ -27,14 +27,12 @@ import androidx.annotation.RawRes
 import com.movtery.zalithlauncher.path.PathManager
 import com.movtery.zalithlauncher.utils.file.ensureParentDirectory
 import com.movtery.zalithlauncher.utils.file.readString
-import com.movtery.zalithlauncher.utils.logging.Logger
+import com.movtery.zalithlauncher.utils.logging.Logger.lWarning
 import org.apache.commons.io.FileUtils
 import java.io.File
 import java.io.FileOutputStream
 import java.io.IOException
 import kotlin.properties.Delegates
-
-private const val TAG = "Contexts"
 
 var GlobalContext by Delegates.notNull<Context>()
 
@@ -99,14 +97,14 @@ fun Context.copyLocalFile(
     try {
         contentResolver.takePersistableUriPermission(uri, flags)
     } catch (e: SecurityException) {
-        Logger.warning(TAG, "Failed to take persistable permission for URI: $uri", e)
+        lWarning("Failed to take persistable permission for URI: $uri", e)
     }
 
     if (outputFile.parentFile?.exists() != true && outputFile.parentFile?.mkdirs() != true) {
-        Logger.warning(TAG, "Failed to create parent directories for output file.")
+        lWarning("Failed to create parent directories for output file.")
     }
     if (!outputFile.exists() && !outputFile.createNewFile()) {
-        Logger.warning(TAG, "Unable to manually create file when importing from URI to local storage.")
+        lWarning("Unable to manually create file when importing from URI to local storage.")
     }
     contentResolver.openInputStream(uri).use { inputStream ->
         FileUtils.copyToFile(inputStream, outputFile)

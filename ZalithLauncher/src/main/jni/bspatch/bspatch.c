@@ -97,12 +97,12 @@ int bspatch(const uint8_t* old, int64_t oldsize, uint8_t* new, int64_t newsize, 
 	return 0;
 }
 
-#include <bzlib.h>
+#include "bzlib.h"
 #include <stdlib.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
-#include <err.h>
+
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
